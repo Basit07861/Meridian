@@ -59,7 +59,7 @@ export default function Navbar() {
             background: 'linear-gradient(135deg,#63B3ED,#B794F4)',
             WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent',
             whiteSpace: 'nowrap',
-          }}>CodeReview.ai</span>
+          }}>Meridian.ai</span>
         </Link>
 
         {/* ── DESKTOP NAV ── */}
