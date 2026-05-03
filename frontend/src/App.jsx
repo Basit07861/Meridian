@@ -1,5 +1,4 @@
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
-import { ThemeProvider } from './context/ThemeContext';
 import Navbar from './components/Navbar';
 import Home from './pages/Home';
 import Login from './pages/Login';
@@ -10,19 +9,17 @@ import GitHubCallback from './pages/GitHubCallback';
 
 function App() {
   return (
-    <ThemeProvider>
-      <Router>
-        <Navbar />
-        <Routes>
-          <Route path="/" element={<Home />} />
-          <Route path="/login" element={<Login />} />
-          <Route path="/register" element={<Register />} />
-          <Route path="/review" element={<Review />} />
-          <Route path="/history" element={<History />} />
-          <Route path="/github/callback" element={<GitHubCallback />} />
-        </Routes>
-      </Router>
-    </ThemeProvider>
+    <Router>
+      <Navbar />
+      <Routes>
+        <Route path="/" element={<Home />} />
+        <Route path="/login" element={<Login />} />
+        <Route path="/register" element={<Register />} />
+        <Route path="/review" element={<Review />} />
+        <Route path="/history" element={<History />} />
+        <Route path="/github/callback" element={<GitHubCallback />} />
+      </Routes>
+    </Router>
   );
 }
 
