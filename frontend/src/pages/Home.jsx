@@ -155,7 +155,7 @@ export default function Home() {
             fontFamily: "'JetBrains Mono', monospace", fontSize: 12, color: c.cyan,
           }}>
             <span style={{ width: 6, height: 6, borderRadius: '50%', background: c.green, animation: 'pulse 2s ease infinite', display: 'inline-block' }} />
-            <span style={{ color: c.muted }}>$</span> npx codereview-ai --model llama-3.3-70b
+            <span style={{ color: c.muted }}>$</span> npx Meridian-ai --model llama-3.3-70b
             <span style={{ color: c.green }}>✓ ready</span>
           </div>
 
