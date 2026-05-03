@@ -1,356 +1,503 @@
+import { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
-import { useState, useEffect } from 'react';
 
-const WORDS = ['JavaScript', 'Python', 'Java', 'TypeScript', 'C++', 'Go', 'Rust', 'PHP'];
+const WORDS = ['JavaScript', 'Python', 'Java', 'TypeScript', 'C++', 'Go', 'Rust', 'Kotlin'];
 
-const FEATURES = [
-  { icon: '🐛', title: 'Bug Detection', desc: 'Instantly catch bugs, vulnerabilities and security flaws your eyes miss.', color: '#FC8181', bg: 'rgba(252,129,129,0.06)', border: 'rgba(252,129,129,0.15)' },
-  { icon: '⚡', title: 'Severity Scoring', desc: 'Every issue tagged High, Medium, or Low so you fix what matters first.', color: '#F6AD55', bg: 'rgba(246,173,85,0.06)', border: 'rgba(246,173,85,0.15)' },
-  { icon: '🔄', title: 'Refactoring Tips', desc: 'Side-by-side diff showing your original vs AI-improved code.', color: '#63B3ED', bg: 'rgba(99,179,237,0.06)', border: 'rgba(99,179,237,0.15)' },
-  { icon: '🐙', title: 'GitHub Integration', desc: 'Login with GitHub and pick files directly from your repositories.', color: '#B794F4', bg: 'rgba(183,148,244,0.06)', border: 'rgba(183,148,244,0.15)' },
-  { icon: '📜', title: 'Review History', desc: 'Every review saved. Search, revisit and track improvements over time.', color: '#68D391', bg: 'rgba(104,211,145,0.06)', border: 'rgba(104,211,145,0.15)' },
-  { icon: '🔗', title: 'Team Sharing', desc: 'One-click shareable links so your whole team can view any review.', color: '#76E4F7', bg: 'rgba(118,228,247,0.06)', border: 'rgba(118,228,247,0.15)' },
+const BUGS = [
+  { type: 'SQL Injection', line: 4, severity: 'critical', code: 'query = "SELECT * FROM users WHERE id = " + userId' },
+  { type: 'Null Pointer', line: 12, severity: 'high', code: 'return user.getName().toUpperCase()' },
+  { type: 'Memory Leak', line: 23, severity: 'high', code: 'setInterval(() => fetchData(), 1000)' },
+  { type: 'XSS Vulnerability', line: 31, severity: 'critical', code: 'innerHTML = userInput' },
 ];
 
-const S = {
-  page: {
-    background: '#04060D',
-    minHeight: '100vh',
-    fontFamily: "'Outfit', sans-serif",
-  },
-  // Navbar
-  nav: {
-    position: 'sticky', top: 0, zIndex: 100,
-    background: 'rgba(4,6,13,0.9)',
-    backdropFilter: 'blur(24px)',
-    borderBottom: '1px solid rgba(255,255,255,0.06)',
-    padding: '0 24px',
-  },
-  navInner: {
-    maxWidth: 1200, margin: '0 auto',
-    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-    height: 64,
-  },
-  logo: {
-    display: 'flex', alignItems: 'center', gap: 10, textDecoration: 'none',
-  },
-  logoIcon: {
-    width: 34, height: 34, borderRadius: 9,
-    background: 'linear-gradient(135deg, #3182CE, #6B46C1)',
-    display: 'flex', alignItems: 'center', justifyContent: 'center',
-    fontSize: 17, boxShadow: '0 4px 16px rgba(49,130,206,0.35)',
-  },
-  logoText: {
-    fontWeight: 800, fontSize: 19, letterSpacing: '-0.5px',
-    background: 'linear-gradient(135deg, #63B3ED, #B794F4)',
-    WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent',
-  },
-  navLinks: { display: 'flex', alignItems: 'center', gap: 8 },
-  navBtn: {
-    padding: '7px 18px', borderRadius: 8, fontSize: 14, fontWeight: 600,
-    background: 'linear-gradient(135deg, #3182CE, #6B46C1)',
-    color: 'white', border: 'none', cursor: 'pointer',
-    textDecoration: 'none', display: 'inline-block',
-    boxShadow: '0 4px 16px rgba(49,130,206,0.3)',
-  },
-  navLink: {
-    padding: '7px 14px', borderRadius: 8, fontSize: 14, fontWeight: 500,
-    color: '#A0AEC0', textDecoration: 'none', border: '1px solid transparent',
-    transition: 'color 0.2s',
-  },
-  // Hero
-  hero: {
-    minHeight: '92vh',
-    display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-    textAlign: 'center', padding: '80px 24px 60px',
-    background: `
-      radial-gradient(ellipse 80% 50% at 20% -10%, rgba(49,130,206,0.08) 0%, transparent 60%),
-      radial-gradient(ellipse 60% 40% at 80% 100%, rgba(107,70,193,0.06) 0%, transparent 60%)
-    `,
-    position: 'relative', overflow: 'hidden',
-  },
-  heroBadge: {
-    display: 'inline-flex', alignItems: 'center', gap: 8,
-    padding: '6px 16px', borderRadius: 100,
-    background: 'rgba(99,179,237,0.08)',
-    border: '1px solid rgba(99,179,237,0.2)',
-    color: '#76E4F7', fontSize: 13, fontWeight: 500,
-    fontFamily: "'JetBrains Mono', monospace",
-    marginBottom: 28,
-  },
-  dot: {
-    width: 7, height: 7, borderRadius: '50%',
-    background: '#76E4F7', animation: 'pulse 2s ease infinite',
-  },
-  heroTitle: {
-    fontSize: 'clamp(36px, 7vw, 72px)',
-    fontWeight: 800, lineHeight: 1.1,
-    letterSpacing: '-2px', marginBottom: 20,
-    color: '#F7FAFC',
-  },
-  heroAccent: {
-    background: 'linear-gradient(135deg, #63B3ED 0%, #76E4F7 50%, #B794F4 100%)',
-    WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent',
-  },
-  heroSub: {
-    fontSize: 'clamp(15px, 2.5vw, 19px)',
-    color: '#718096', maxWidth: 560, lineHeight: 1.7, marginBottom: 40,
-  },
-  heroCtas: {
-    display: 'flex', gap: 12, flexWrap: 'wrap', justifyContent: 'center', marginBottom: 60,
-  },
-  ctaPrimary: {
-    padding: '13px 28px', borderRadius: 10, fontSize: 16, fontWeight: 700,
-    background: 'linear-gradient(135deg, #3182CE, #6B46C1)',
-    color: 'white', border: 'none', cursor: 'pointer',
-    textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 8,
-    boxShadow: '0 8px 32px rgba(49,130,206,0.35)',
-    transition: 'transform 0.2s, box-shadow 0.2s',
-  },
-  ctaSecondary: {
-    padding: '12px 28px', borderRadius: 10, fontSize: 16, fontWeight: 600,
-    background: 'rgba(255,255,255,0.04)',
-    color: '#A0AEC0', border: '1px solid rgba(255,255,255,0.1)',
-    textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 8,
-    transition: 'all 0.2s',
-  },
-  stats: {
-    display: 'flex', gap: 48, flexWrap: 'wrap', justifyContent: 'center',
-  },
-  statItem: { textAlign: 'center' },
-  statVal: {
-    fontSize: 32, fontWeight: 800, letterSpacing: '-1px',
-    background: 'linear-gradient(135deg, #63B3ED, #76E4F7)',
-    WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent',
-  },
-  statLabel: { fontSize: 13, color: '#4A5568', marginTop: 4 },
-  // Code preview
-  codePreview: {
-    maxWidth: 800, margin: '0 auto', padding: '0 24px 80px',
-  },
-  codeCard: {
-    borderRadius: 16, overflow: 'hidden',
-    border: '1px solid rgba(255,255,255,0.06)',
-    boxShadow: '0 24px 80px rgba(0,0,0,0.6)',
-  },
-  codeBar: {
-    background: '#0C1220', padding: '12px 16px',
-    display: 'flex', alignItems: 'center', gap: 8,
-    borderBottom: '1px solid rgba(255,255,255,0.06)',
-  },
-  codeDot: { width: 12, height: 12, borderRadius: '50%' },
-  codeBody: {
-    background: '#020408', padding: '24px',
-    fontFamily: "'JetBrains Mono', monospace", fontSize: 13, lineHeight: 1.8,
-  },
-  // Features
-  features: {
-    maxWidth: 1200, margin: '0 auto', padding: '60px 24px 100px',
-  },
-  sectionLabel: {
-    fontFamily: "'JetBrains Mono', monospace",
-    fontSize: 12, color: '#4A5568', letterSpacing: 2,
-    textTransform: 'uppercase', marginBottom: 12, display: 'block',
-  },
-  sectionTitle: {
-    fontSize: 'clamp(26px, 4vw, 42px)',
-    fontWeight: 800, letterSpacing: '-1px', marginBottom: 48, color: '#F7FAFC',
-  },
-  featureGrid: {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))',
-    gap: 16,
-  },
-  featureCard: {
-    padding: 28, borderRadius: 14,
-    border: '1px solid',
-    transition: 'transform 0.25s ease, box-shadow 0.25s ease',
-  },
-  featureIcon: {
-    fontSize: 28, marginBottom: 14, display: 'block',
-  },
-  featureTitle: {
-    fontSize: 17, fontWeight: 700, marginBottom: 8, color: '#F7FAFC',
-  },
-  featureDesc: {
-    fontSize: 14, color: '#718096', lineHeight: 1.7,
-  },
-  // CTA section
-  ctaSection: {
-    padding: '80px 24px 120px', textAlign: 'center',
-  },
-  ctaCard: {
-    maxWidth: 600, margin: '0 auto',
-    background: 'rgba(15,22,37,0.8)',
-    border: '1px solid rgba(99,179,237,0.15)',
-    borderRadius: 20, padding: '60px 40px',
-    backdropFilter: 'blur(20px)',
-    boxShadow: '0 0 80px rgba(49,130,206,0.08)',
-  },
-  ctaTitle: {
-    fontSize: 'clamp(24px, 4vw, 36px)',
-    fontWeight: 800, letterSpacing: '-1px', marginBottom: 12, color: '#F7FAFC',
-  },
-  ctaSub: { fontSize: 16, color: '#718096', marginBottom: 32 },
-  footer: {
-    borderTop: '1px solid rgba(255,255,255,0.06)',
-    padding: '24px', textAlign: 'center',
-    fontSize: 13, color: '#4A5568',
-  },
-};
+const STEPS = [
+  { num: '01', icon: '📋', title: 'Paste your code', desc: 'Drop any language — Python, JS, Java, C++ and more' },
+  { num: '02', icon: '🧠', title: 'AI scans every line', desc: 'LLaMA 3.3 70B powered by Groq LPU in seconds' },
+  { num: '03', icon: '🎯', title: 'Get precise fixes', desc: 'Severity-tagged bugs with refactored code ready to use' },
+];
 
 export default function Home() {
   const [wordIdx, setWordIdx] = useState(0);
   const [text, setText] = useState('');
   const [deleting, setDeleting] = useState(false);
+  const [activeBug, setActiveBug] = useState(0);
+  const [scanLine, setScanLine] = useState(0);
+  const [hoveredFeature, setHoveredFeature] = useState(null);
+  const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
+  const heroRef = useRef(null);
 
+  // Typing animation
   useEffect(() => {
-  const word = WORDS[wordIdx];
-  
-  let delay;
-  
-  if (!deleting && text.length < word.length) {
-    // Still typing
-    delay = 120;
-    const t = setTimeout(() => setText(word.slice(0, text.length + 1)), delay);
-    return () => clearTimeout(t);
-  }
-  
-  if (!deleting && text.length === word.length) {
-    // Finished typing — pause then start deleting
-    delay = 1500;
-    const t = setTimeout(() => setDeleting(true), delay);
-    return () => clearTimeout(t);
-  }
-  
-  if (deleting && text.length > 0) {
-    // Still deleting
-    delay = 60;
-    const t = setTimeout(() => setText(word.slice(0, text.length - 1)), delay);
-    return () => clearTimeout(t);
-  }
-  
-  if (deleting && text.length === 0) {
-    // Finished deleting — move to next word
-    setDeleting(false);
-    setWordIdx(i => (i + 1) % WORDS.length);
-  }
-  
-}, [text, deleting, wordIdx]);
+    const word = WORDS[wordIdx];
+    if (!deleting && text.length < word.length) {
+      const t = setTimeout(() => setText(word.slice(0, text.length + 1)), 120);
+      return () => clearTimeout(t);
+    }
+    if (!deleting && text.length === word.length) {
+      const t = setTimeout(() => setDeleting(true), 1800);
+      return () => clearTimeout(t);
+    }
+    if (deleting && text.length > 0) {
+      const t = setTimeout(() => setText(word.slice(0, text.length - 1)), 55);
+      return () => clearTimeout(t);
+    }
+    if (deleting && text.length === 0) {
+      setDeleting(false);
+      setWordIdx(i => (i + 1) % WORDS.length);
+    }
+  }, [text, deleting, wordIdx]);
+
+  // Bug cycle
+  useEffect(() => {
+    const t = setInterval(() => setActiveBug(i => (i + 1) % BUGS.length), 2800);
+    return () => clearInterval(t);
+  }, []);
+
+  // Scan line
+  useEffect(() => {
+    const t = setInterval(() => setScanLine(i => (i + 1) % 12), 400);
+    return () => clearInterval(t);
+  }, []);
+
+  // Mouse parallax
+  const handleMouseMove = (e) => {
+    if (!heroRef.current) return;
+    const rect = heroRef.current.getBoundingClientRect();
+    setMousePos({
+      x: ((e.clientX - rect.left) / rect.width - 0.5) * 20,
+      y: ((e.clientY - rect.top) / rect.height - 0.5) * 20,
+    });
+  };
+
+  const c = {
+    bg: '#030508',
+    surface: '#080D16',
+    surface2: '#0D1420',
+    border: 'rgba(255,255,255,0.06)',
+    border2: 'rgba(255,255,255,0.1)',
+    blue: '#4F9CF9',
+    cyan: '#22D3EE',
+    purple: '#A78BFA',
+    green: '#34D399',
+    red: '#F87171',
+    orange: '#FB923C',
+    text: '#F1F5F9',
+    muted: '#64748B',
+    muted2: '#334155',
+  };
 
   return (
-    <div style={S.page}>
-      {/* HERO */}
-      <section style={S.hero}>
-        <div className="fade-up" style={S.heroBadge}>
-          <div style={S.dot} />
-          Powered by LLaMA 3.3 · 70B via Groq LPU
+    <div style={{ background: c.bg, minHeight: '100vh', fontFamily: "'Outfit', sans-serif", color: c.text, overflowX: 'hidden' }}>
+
+      {/* ── HERO ── */}
+      <section
+        ref={heroRef}
+        onMouseMove={handleMouseMove}
+        style={{
+          minHeight: '100vh', position: 'relative', overflow: 'hidden',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+        }}
+      >
+        {/* Animated grid background */}
+        <div style={{
+          position: 'absolute', inset: 0, zIndex: 0,
+          backgroundImage: `
+            linear-gradient(rgba(79,156,249,0.04) 1px, transparent 1px),
+            linear-gradient(90deg, rgba(79,156,249,0.04) 1px, transparent 1px)
+          `,
+          backgroundSize: '60px 60px',
+          transform: `translate(${mousePos.x * 0.3}px, ${mousePos.y * 0.3}px)`,
+          transition: 'transform 0.1s ease',
+        }} />
+
+        {/* Radial glow spots */}
+        <div style={{ position: 'absolute', inset: 0, zIndex: 0, overflow: 'hidden' }}>
+          <div style={{
+            position: 'absolute', width: 600, height: 600, borderRadius: '50%',
+            background: 'radial-gradient(circle, rgba(79,156,249,0.06) 0%, transparent 70%)',
+            top: -200, left: -100,
+            transform: `translate(${mousePos.x * 0.5}px, ${mousePos.y * 0.5}px)`,
+            transition: 'transform 0.2s ease',
+          }} />
+          <div style={{
+            position: 'absolute', width: 500, height: 500, borderRadius: '50%',
+            background: 'radial-gradient(circle, rgba(167,139,250,0.05) 0%, transparent 70%)',
+            bottom: -100, right: -100,
+            transform: `translate(${-mousePos.x * 0.3}px, ${-mousePos.y * 0.3}px)`,
+            transition: 'transform 0.2s ease',
+          }} />
         </div>
 
-        <h1 className="fade-up-1" style={S.heroTitle}>
-          Review Your{' '}
-          <span style={S.heroAccent}>{text}<span className="cursor-blink">|</span></span>
-          <br />Code Instantly
-        </h1>
-
-        <p className="fade-up-2" style={S.heroSub}>
-          Paste your code and get AI-driven bug detection, severity scoring,
-          and refactoring suggestions in seconds — not hours.
-        </p>
-
-        <div className="fade-up-3" style={S.heroCtas}>
-          <Link to="/register" style={S.ctaPrimary}>
-            Start Reviewing Free →
-          </Link>
-          <Link to="/login" style={S.ctaSecondary}>
-            Sign In
-          </Link>
+        {/* Corner decorations */}
+        <div style={{ position: 'absolute', top: 40, left: 40, zIndex: 1 }}>
+          <div style={{ width: 20, height: 20, borderTop: `1px solid ${c.blue}`, borderLeft: `1px solid ${c.blue}`, opacity: 0.5 }} />
+        </div>
+        <div style={{ position: 'absolute', top: 40, right: 40, zIndex: 1 }}>
+          <div style={{ width: 20, height: 20, borderTop: `1px solid ${c.blue}`, borderRight: `1px solid ${c.blue}`, opacity: 0.5 }} />
+        </div>
+        <div style={{ position: 'absolute', bottom: 40, left: 40, zIndex: 1 }}>
+          <div style={{ width: 20, height: 20, borderBottom: `1px solid ${c.blue}`, borderLeft: `1px solid ${c.blue}`, opacity: 0.5 }} />
+        </div>
+        <div style={{ position: 'absolute', bottom: 40, right: 40, zIndex: 1 }}>
+          <div style={{ width: 20, height: 20, borderBottom: `1px solid ${c.blue}`, borderRight: `1px solid ${c.blue}`, opacity: 0.5 }} />
         </div>
 
-        <div className="fade-up-4" style={S.stats}>
-          {[['10+', 'Languages'], ['3', 'Severity Levels'], ['< 5s', 'Review Time'], ['100%', 'AI Powered']].map(([v, l]) => (
-            <div key={l} style={S.statItem}>
-              <div style={S.statVal}>{v}</div>
-              <div style={S.statLabel}>{l}</div>
-            </div>
-          ))}
+        {/* Main content */}
+        <div style={{ position: 'relative', zIndex: 2, textAlign: 'center', padding: '120px 24px 80px', maxWidth: 900, margin: '0 auto' }}>
+
+          {/* Terminal badge */}
+          <div className="fade-up" style={{
+            display: 'inline-flex', alignItems: 'center', gap: 10,
+            padding: '8px 16px', marginBottom: 36,
+            background: 'rgba(79,156,249,0.05)',
+            border: '1px solid rgba(79,156,249,0.2)',
+            borderRadius: 6,
+            fontFamily: "'JetBrains Mono', monospace", fontSize: 12, color: c.cyan,
+          }}>
+            <span style={{ width: 6, height: 6, borderRadius: '50%', background: c.green, animation: 'pulse 2s ease infinite', display: 'inline-block' }} />
+            <span style={{ color: c.muted }}>$</span> npx codereview-ai --model llama-3.3-70b
+            <span style={{ color: c.green }}>✓ ready</span>
+          </div>
+
+          {/* Main headline */}
+          <h1 className="fade-up-1" style={{
+            fontSize: 'clamp(40px, 7vw, 80px)',
+            fontWeight: 800, lineHeight: 1.05, letterSpacing: -3,
+            marginBottom: 24, color: '#F8FAFC',
+          }}>
+            Stop shipping<br />
+            <span style={{
+              background: `linear-gradient(135deg, ${c.blue} 0%, ${c.cyan} 40%, ${c.purple} 100%)`,
+              WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent',
+            }}>
+              {text || '\u00A0'}<span style={{ animation: 'blink 1s step-end infinite', display: 'inline', WebkitTextFillColor: c.blue }}>|</span>
+            </span>
+            <br />bugs
+          </h1>
+
+          <p className="fade-up-2" style={{
+            fontSize: 18, color: c.muted, maxWidth: 520, margin: '0 auto 48px',
+            lineHeight: 1.75, fontWeight: 400,
+          }}>
+            Paste your code. Our AI reviews every line, catches bugs, scores severity, and hands you the fix — in under 5 seconds.
+          </p>
+
+          {/* CTAs */}
+          <div className="fade-up-3" style={{ display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap', marginBottom: 72 }}>
+            <Link to="/register" style={{
+              padding: '14px 32px', borderRadius: 8, fontSize: 16, fontWeight: 700,
+              background: `linear-gradient(135deg, #2563EB, #7C3AED)`,
+              color: 'white', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 8,
+              boxShadow: '0 0 40px rgba(79,156,249,0.2)',
+              position: 'relative', overflow: 'hidden',
+            }}
+              onMouseEnter={e => e.currentTarget.style.boxShadow = '0 0 60px rgba(79,156,249,0.35)'}
+              onMouseLeave={e => e.currentTarget.style.boxShadow = '0 0 40px rgba(79,156,249,0.2)'}
+            >
+              Start reviewing free
+              <span style={{ fontSize: 18 }}>→</span>
+            </Link>
+            <Link to="/login" style={{
+              padding: '13px 32px', borderRadius: 8, fontSize: 16, fontWeight: 600,
+              background: 'rgba(255,255,255,0.03)',
+              color: c.muted, textDecoration: 'none',
+              border: `1px solid ${c.border2}`,
+              transition: 'all 0.2s',
+            }}
+              onMouseEnter={e => { e.currentTarget.style.color = c.text; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.2)'; }}
+              onMouseLeave={e => { e.currentTarget.style.color = c.muted; e.currentTarget.style.borderColor = c.border2; }}
+            >
+              Sign in
+            </Link>
+          </div>
+
+          {/* Stats row */}
+          <div className="fade-up-4" style={{ display: 'flex', gap: 0, justifyContent: 'center', flexWrap: 'wrap' }}>
+            {[
+              { val: '< 5s', label: 'avg review time' },
+              { val: '10+', label: 'languages supported' },
+              { val: '3', label: 'severity levels' },
+              { val: '100%', label: 'ai powered' },
+            ].map(({ val, label }, i) => (
+              <div key={i} style={{
+                padding: '0 32px',
+                borderRight: i < 3 ? `1px solid ${c.border}` : 'none',
+                textAlign: 'center',
+              }}>
+                <div style={{ fontSize: 28, fontWeight: 800, letterSpacing: -1, color: c.blue }}>{val}</div>
+                <div style={{ fontSize: 12, color: c.muted, marginTop: 4, letterSpacing: 0.5 }}>{label}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Scroll indicator */}
+        <div style={{ position: 'absolute', bottom: 32, left: '50%', transform: 'translateX(-50%)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, animation: 'fadeUp 1s 1s ease both' }}>
+          <span style={{ fontSize: 11, color: c.muted2, letterSpacing: 2, textTransform: 'uppercase' }}>scroll</span>
+          <div style={{ width: 1, height: 40, background: `linear-gradient(to bottom, ${c.muted2}, transparent)` }} />
         </div>
       </section>
 
-      {/* CODE PREVIEW */}
-      <div className="fade-up-5" style={S.codePreview}>
-        <div style={S.codeCard}>
-          <div style={S.codeBar}>
-            <div style={{ ...S.codeDot, background: '#FC8181' }} />
-            <div style={{ ...S.codeDot, background: '#F6E05E' }} />
-            <div style={{ ...S.codeDot, background: '#68D391' }} />
-            <span style={{ marginLeft: 12, fontSize: 12, color: '#4A5568', fontFamily: "'JetBrains Mono', monospace" }}>
-              review.js — AI Analysis
-            </span>
-          </div>
-          <div style={S.codeBody}>
-            <div style={{ color: '#4A5568' }}>{'// 🔍 CodeReview.ai — analyzing your code...'}</div>
-            <br />
-            <div><span style={{ color: '#B794F4' }}>function </span><span style={{ color: '#76E4F7' }}>fetchUserData</span><span style={{ color: '#718096' }}>(userId) {'{'}</span></div>
-            <div style={{ paddingLeft: 20 }}><span style={{ color: '#B794F4' }}>var </span><span style={{ color: '#E2E8F0' }}>data </span><span style={{ color: '#718096' }}>= </span><span style={{ color: '#76E4F7' }}>fetch</span><span style={{ color: '#718096' }}>(`/api/users/${'{'}</span><span style={{ color: '#F6AD55' }}>userId</span><span style={{ color: '#718096' }}>{'}'}`)</span></div>
-            <div style={{ paddingLeft: 20, display: 'flex', alignItems: 'center', gap: 12 }}>
-              <span style={{ color: '#E2E8F0' }}>return data</span>
-              <span style={{ background: 'rgba(252,129,129,0.12)', color: '#FEB2B2', border: '1px solid rgba(252,129,129,0.25)', padding: '1px 8px', borderRadius: 4, fontSize: 11, fontWeight: 600 }}>HIGH</span>
-            </div>
-            <div style={{ color: '#718096' }}>{'}'}</div>
-            <br />
-            <div style={{ background: 'rgba(252,129,129,0.05)', border: '1px solid rgba(252,129,129,0.15)', borderRadius: 8, padding: '12px 16px' }}>
-              <div style={{ color: '#FC8181', fontSize: 13 }}>🐛 Missing <code style={{ background: 'rgba(255,255,255,0.06)', padding: '1px 5px', borderRadius: 3 }}>await</code> — fetch() returns a Promise, not data</div>
-              <div style={{ color: '#68D391', fontSize: 13, marginTop: 6 }}>✅ Fix: Add <code style={{ background: 'rgba(255,255,255,0.06)', padding: '1px 5px', borderRadius: 3 }}>async/await</code> or <code style={{ background: 'rgba(255,255,255,0.06)', padding: '1px 5px', borderRadius: 3 }}>.then()</code> to handle the Promise</div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* FEATURES */}
-      <section style={S.features}>
-        <div style={{ textAlign: 'center', marginBottom: 56 }}>
-          <span style={S.sectionLabel}>// features</span>
-          <h2 style={S.sectionTitle}>
-            Everything to ship{' '}
-            <span style={{ background: 'linear-gradient(135deg,#63B3ED,#B794F4)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
-              clean code
-            </span>
+      {/* ── LIVE DEMO SECTION ── */}
+      <section style={{ padding: '100px 24px', maxWidth: 1200, margin: '0 auto' }}>
+        <div style={{ textAlign: 'center', marginBottom: 60 }}>
+          <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 12, color: c.blue, letterSpacing: 2, textTransform: 'uppercase', marginBottom: 16 }}>// live preview</div>
+          <h2 style={{ fontSize: 'clamp(28px, 4vw, 48px)', fontWeight: 800, letterSpacing: -1.5, color: '#F8FAFC' }}>
+            Watch it catch bugs<br />in real time
           </h2>
         </div>
-        <div style={S.featureGrid}>
-          {FEATURES.map((f, i) => (
-            <div
-              key={i}
-              style={{ ...S.featureCard, background: f.bg, borderColor: f.border }}
-              onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-4px)'; e.currentTarget.style.boxShadow = `0 12px 40px rgba(0,0,0,0.4)`; }}
-              onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = 'none'; }}
-            >
-              <span style={S.featureIcon}>{f.icon}</span>
-              <h3 style={{ ...S.featureTitle, color: f.color }}>{f.title}</h3>
-              <p style={S.featureDesc}>{f.desc}</p>
+
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(480px, 1fr))', gap: 20 }}>
+          {/* Code panel */}
+          <div style={{ background: c.surface, border: `1px solid ${c.border}`, borderRadius: 12, overflow: 'hidden' }}>
+            <div style={{ background: '#060A12', padding: '12px 16px', display: 'flex', alignItems: 'center', gap: 8, borderBottom: `1px solid ${c.border}` }}>
+              <div style={{ width: 10, height: 10, borderRadius: '50%', background: '#F87171' }} />
+              <div style={{ width: 10, height: 10, borderRadius: '50%', background: '#FBBF24' }} />
+              <div style={{ width: 10, height: 10, borderRadius: '50%', background: '#34D399' }} />
+              <span style={{ marginLeft: 8, fontSize: 12, color: c.muted, fontFamily: "'JetBrains Mono',monospace" }}>vulnerable.py</span>
+              <span style={{ marginLeft: 'auto', fontSize: 11, background: 'rgba(248,113,113,0.1)', color: '#F87171', border: '1px solid rgba(248,113,113,0.2)', padding: '2px 8px', borderRadius: 4 }}>4 issues found</span>
             </div>
-          ))}
+            <div style={{ padding: 20, fontFamily: "'JetBrains Mono',monospace", fontSize: 13, lineHeight: 2 }}>
+              {[
+                { ln: 1, code: 'import os', color: '#94A3B8', highlight: false },
+                { ln: 2, code: '', color: '#94A3B8', highlight: false },
+                { ln: 3, code: 'def get_user(user_id):', color: '#7DD3FC', highlight: false },
+                { ln: 4, code: '  query = "SELECT * FROM users WHERE id = " + user_id', color: '#FCA5A5', highlight: true, bug: 'SQL Injection' },
+                { ln: 5, code: '  return db.execute(query)', color: '#94A3B8', highlight: false },
+                { ln: 6, code: '', color: '#94A3B8', highlight: false },
+                { ln: 7, code: 'def process(data):', color: '#7DD3FC', highlight: false },
+                { ln: 8, code: '  password = "admin123"', color: '#FDE68A', highlight: true, bug: 'Hardcoded secret' },
+                { ln: 9, code: '  result = int(data["value"])', color: '#94A3B8', highlight: false },
+                { ln: 10, code: '  return 100 / result', color: '#FCA5A5', highlight: true, bug: 'Division by zero' },
+              ].map(({ ln, code, color, highlight, bug }) => (
+                <div key={ln} style={{
+                  display: 'flex', gap: 16, alignItems: 'center',
+                  padding: '0 8px', borderRadius: 4, margin: '0 -8px',
+                  background: highlight ? 'rgba(248,113,113,0.06)' : 'transparent',
+                  borderLeft: highlight ? '2px solid rgba(248,113,113,0.4)' : '2px solid transparent',
+                }}>
+                  <span style={{ color: c.muted2, minWidth: 20, userSelect: 'none', fontSize: 11 }}>{ln}</span>
+                  <span style={{ color, flex: 1 }}>{code || '\u00A0'}</span>
+                  {bug && (
+                    <span style={{ fontSize: 10, background: 'rgba(248,113,113,0.12)', color: '#F87171', border: '1px solid rgba(248,113,113,0.2)', padding: '1px 6px', borderRadius: 3, whiteSpace: 'nowrap' }}>
+                      ⚠ {bug}
+                    </span>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Results panel */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+            {/* Score */}
+            <div style={{ background: c.surface, border: `1px solid ${c.border}`, borderRadius: 12, padding: 24 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+                <div>
+                  <div style={{ fontSize: 13, color: c.muted, marginBottom: 4 }}>Security Score</div>
+                  <div style={{ fontSize: 40, fontWeight: 800, color: '#F87171', letterSpacing: -2, lineHeight: 1 }}>22</div>
+                  <div style={{ fontSize: 12, color: c.muted }}>/ 100 — Critical</div>
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                  {[
+                    { n: 2, l: 'Critical', c: '#F87171', bg: 'rgba(248,113,113,0.08)' },
+                    { n: 1, l: 'High', c: '#FB923C', bg: 'rgba(251,146,60,0.08)' },
+                    { n: 1, l: 'Medium', c: '#FBBF24', bg: 'rgba(251,191,36,0.08)' },
+                    { n: 0, l: 'Low', c: '#34D399', bg: 'rgba(52,211,153,0.08)' },
+                  ].map(({ n, l, c: col, bg }) => (
+                    <div key={l} style={{ background: bg, borderRadius: 8, padding: '8px 12px', textAlign: 'center' }}>
+                      <div style={{ fontSize: 20, fontWeight: 800, color: col }}>{n}</div>
+                      <div style={{ fontSize: 10, color: c.muted }}>{l}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <div style={{ height: 4, background: 'rgba(255,255,255,0.05)', borderRadius: 2, overflow: 'hidden' }}>
+                <div style={{ width: '22%', height: '100%', background: 'linear-gradient(90deg,#991B1B,#F87171)', borderRadius: 2 }} />
+              </div>
+            </div>
+
+            {/* Bug cards - animated */}
+            {BUGS.map((bug, i) => (
+              <div key={i} style={{
+                background: c.surface, border: `1px solid ${i === activeBug ? 'rgba(248,113,113,0.3)' : c.border}`,
+                borderLeft: `3px solid ${i === activeBug ? '#F87171' : c.muted2}`,
+                borderRadius: '0 10px 10px 0', padding: 16,
+                transition: 'all 0.4s ease',
+                transform: i === activeBug ? 'translateX(4px)' : 'translateX(0)',
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                  <span style={{
+                    padding: '2px 8px', borderRadius: 4, fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1,
+                    background: bug.severity === 'critical' ? 'rgba(248,113,113,0.1)' : 'rgba(251,146,60,0.1)',
+                    color: bug.severity === 'critical' ? '#F87171' : '#FB923C',
+                    border: `1px solid ${bug.severity === 'critical' ? 'rgba(248,113,113,0.2)' : 'rgba(251,146,60,0.2)'}`,
+                  }}>{bug.severity}</span>
+                  <span style={{ fontSize: 13, fontWeight: 600, color: '#F1F5F9' }}>Line {bug.line}</span>
+                  <span style={{ marginLeft: 'auto', fontSize: 12, color: c.muted }}>{bug.type}</span>
+                </div>
+                <code style={{ fontSize: 12, color: '#94A3B8', fontFamily: "'JetBrains Mono',monospace", background: '#060A12', padding: '4px 8px', borderRadius: 4, display: 'block' }}>
+                  {bug.code}
+                </code>
+              </div>
+            ))}
+          </div>
         </div>
       </section>
 
-      {/* CTA */}
-      <section style={S.ctaSection}>
-        <div style={S.ctaCard}>
-          <h2 style={S.ctaTitle}>Ready to write better code?</h2>
-          <p style={S.ctaSub}>Join developers who catch bugs before they ship.</p>
-          <Link to="/register" style={{ ...S.ctaPrimary, display: 'inline-flex' }}>
-            Get Started for Free →
+      {/* ── HOW IT WORKS ── */}
+      <section style={{ padding: '100px 24px', background: c.surface }}>
+        <div style={{ maxWidth: 900, margin: '0 auto' }}>
+          <div style={{ textAlign: 'center', marginBottom: 72 }}>
+            <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 12, color: c.blue, letterSpacing: 2, textTransform: 'uppercase', marginBottom: 16 }}>// how it works</div>
+            <h2 style={{ fontSize: 'clamp(28px, 4vw, 48px)', fontWeight: 800, letterSpacing: -1.5, color: '#F8FAFC' }}>Three steps to cleaner code</h2>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 2, position: 'relative' }}>
+            {/* Connector line */}
+            <div style={{ position: 'absolute', top: 40, left: '16.66%', right: '16.66%', height: 1, background: `linear-gradient(90deg, ${c.border2}, ${c.blue}40, ${c.border2})`, zIndex: 0 }} />
+            {STEPS.map((step, i) => (
+              <div key={i} style={{ position: 'relative', zIndex: 1, textAlign: 'center', padding: '0 24px' }}>
+                <div style={{
+                  width: 80, height: 80, borderRadius: 20, margin: '0 auto 20px',
+                  background: 'linear-gradient(135deg, rgba(79,156,249,0.1), rgba(167,139,250,0.1))',
+                  border: `1px solid rgba(79,156,249,0.2)`,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  fontSize: 32,
+                }}>
+                  {step.icon}
+                </div>
+                <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 11, color: c.blue, marginBottom: 8 }}>{step.num}</div>
+                <h3 style={{ fontSize: 17, fontWeight: 700, color: '#F1F5F9', marginBottom: 10 }}>{step.title}</h3>
+                <p style={{ fontSize: 14, color: c.muted, lineHeight: 1.65 }}>{step.desc}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ── FEATURES BENTO GRID ── */}
+      <section style={{ padding: '100px 24px', maxWidth: 1200, margin: '0 auto' }}>
+        <div style={{ textAlign: 'center', marginBottom: 60 }}>
+          <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 12, color: c.blue, letterSpacing: 2, textTransform: 'uppercase', marginBottom: 16 }}>// features</div>
+          <h2 style={{ fontSize: 'clamp(28px, 4vw, 48px)', fontWeight: 800, letterSpacing: -1.5, color: '#F8FAFC' }}>
+            Built for developers<br />who care about quality
+          </h2>
+        </div>
+
+        {/* Bento grid */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(12, 1fr)', gap: 16 }}>
+          {/* Big feature */}
+          <div style={{
+            gridColumn: 'span 7', background: c.surface, border: `1px solid ${c.border}`,
+            borderRadius: 16, padding: 32, position: 'relative', overflow: 'hidden',
+            transition: 'border-color 0.3s',
+          }}
+            onMouseEnter={e => e.currentTarget.style.borderColor = 'rgba(79,156,249,0.3)'}
+            onMouseLeave={e => e.currentTarget.style.borderColor = c.border}
+          >
+            <div style={{ position: 'absolute', top: 0, right: 0, width: 200, height: 200, background: 'radial-gradient(circle, rgba(79,156,249,0.06) 0%, transparent 70%)', pointerEvents: 'none' }} />
+            <div style={{ fontSize: 36, marginBottom: 16 }}>🤖</div>
+            <h3 style={{ fontSize: 22, fontWeight: 700, color: '#F1F5F9', marginBottom: 12 }}>Your own AI microservice</h3>
+            <p style={{ fontSize: 15, color: c.muted, lineHeight: 1.7, marginBottom: 20 }}>Powered by a custom Python FastAPI service running LLaMA 3.3 70B via Groq's LPU — not a wrapper around a chat UI.</p>
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              {['FastAPI', 'LLaMA 3.3', 'Groq LPU', 'Python'].map(tag => (
+                <span key={tag} style={{ padding: '4px 10px', borderRadius: 5, fontSize: 12, fontWeight: 600, background: 'rgba(79,156,249,0.08)', color: c.blue, border: '1px solid rgba(79,156,249,0.15)', fontFamily: "'JetBrains Mono',monospace" }}>{tag}</span>
+              ))}
+            </div>
+          </div>
+
+          {/* GitHub */}
+          <div style={{
+            gridColumn: 'span 5', background: c.surface, border: `1px solid ${c.border}`,
+            borderRadius: 16, padding: 28, position: 'relative', overflow: 'hidden',
+            transition: 'border-color 0.3s',
+          }}
+            onMouseEnter={e => e.currentTarget.style.borderColor = 'rgba(167,139,250,0.3)'}
+            onMouseLeave={e => e.currentTarget.style.borderColor = c.border}
+          >
+            <div style={{ fontSize: 32, marginBottom: 14 }}>🐙</div>
+            <h3 style={{ fontSize: 18, fontWeight: 700, color: '#F1F5F9', marginBottom: 10 }}>GitHub integration</h3>
+            <p style={{ fontSize: 14, color: c.muted, lineHeight: 1.65 }}>Login with GitHub. Browse your repos. Pick any file for instant AI review.</p>
+          </div>
+
+          {/* Severity */}
+          <div style={{
+            gridColumn: 'span 4', background: c.surface, border: `1px solid ${c.border}`,
+            borderRadius: 16, padding: 28, transition: 'border-color 0.3s',
+          }}
+            onMouseEnter={e => e.currentTarget.style.borderColor = 'rgba(248,113,113,0.3)'}
+            onMouseLeave={e => e.currentTarget.style.borderColor = c.border}
+          >
+            <div style={{ fontSize: 32, marginBottom: 14 }}>🎯</div>
+            <h3 style={{ fontSize: 18, fontWeight: 700, color: '#F1F5F9', marginBottom: 10 }}>Severity scoring</h3>
+            <p style={{ fontSize: 14, color: c.muted, lineHeight: 1.65 }}>Every bug tagged Critical, High, Medium or Low. Fix what actually matters first.</p>
+          </div>
+
+          {/* Diff */}
+          <div style={{
+            gridColumn: 'span 4', background: c.surface, border: `1px solid ${c.border}`,
+            borderRadius: 16, padding: 28, transition: 'border-color 0.3s',
+          }}
+            onMouseEnter={e => e.currentTarget.style.borderColor = 'rgba(52,211,153,0.3)'}
+            onMouseLeave={e => e.currentTarget.style.borderColor = c.border}
+          >
+            <div style={{ fontSize: 32, marginBottom: 14 }}>🔄</div>
+            <h3 style={{ fontSize: 18, fontWeight: 700, color: '#F1F5F9', marginBottom: 10 }}>Side-by-side diff</h3>
+            <p style={{ fontSize: 14, color: c.muted, lineHeight: 1.65 }}>Original vs refactored code shown side by side. Copy the fix in one click.</p>
+          </div>
+
+          {/* History */}
+          <div style={{
+            gridColumn: 'span 4', background: c.surface, border: `1px solid ${c.border}`,
+            borderRadius: 16, padding: 28, transition: 'border-color 0.3s',
+          }}
+            onMouseEnter={e => e.currentTarget.style.borderColor = 'rgba(251,146,60,0.3)'}
+            onMouseLeave={e => e.currentTarget.style.borderColor = c.border}
+          >
+            <div style={{ fontSize: 32, marginBottom: 14 }}>📜</div>
+            <h3 style={{ fontSize: 18, fontWeight: 700, color: '#F1F5F9', marginBottom: 10 }}>Review history</h3>
+            <p style={{ fontSize: 14, color: c.muted, lineHeight: 1.65 }}>Every review saved to your account. Search, revisit and share with your team.</p>
+          </div>
+        </div>
+      </section>
+
+      {/* ── CTA SECTION ── */}
+      <section style={{ padding: '100px 24px 120px', textAlign: 'center' }}>
+        <div style={{
+          maxWidth: 700, margin: '0 auto',
+          background: c.surface, border: `1px solid rgba(79,156,249,0.15)`,
+          borderRadius: 24, padding: '72px 48px',
+          position: 'relative', overflow: 'hidden',
+        }}>
+          {/* Glow */}
+          <div style={{ position: 'absolute', top: -60, left: '50%', transform: 'translateX(-50%)', width: 300, height: 300, borderRadius: '50%', background: 'radial-gradient(circle, rgba(79,156,249,0.08) 0%, transparent 70%)', pointerEvents: 'none' }} />
+
+          <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 12, color: c.blue, letterSpacing: 2, textTransform: 'uppercase', marginBottom: 20 }}>// get started</div>
+          <h2 style={{ fontSize: 'clamp(28px, 4vw, 44px)', fontWeight: 800, letterSpacing: -1.5, color: '#F8FAFC', marginBottom: 16 }}>
+            Ready to write<br />cleaner code?
+          </h2>
+          <p style={{ fontSize: 16, color: c.muted, marginBottom: 36 }}>Join developers who catch bugs before they ship.</p>
+          <Link to="/register" style={{
+            padding: '15px 40px', borderRadius: 10, fontSize: 17, fontWeight: 700,
+            background: 'linear-gradient(135deg, #2563EB, #7C3AED)',
+            color: 'white', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 10,
+            boxShadow: '0 0 50px rgba(79,156,249,0.25)',
+            transition: 'box-shadow 0.3s',
+          }}
+            onMouseEnter={e => e.currentTarget.style.boxShadow = '0 0 70px rgba(79,156,249,0.4)'}
+            onMouseLeave={e => e.currentTarget.style.boxShadow = '0 0 50px rgba(79,156,249,0.25)'}
+          >
+            Start for free <span style={{ fontSize: 20 }}>→</span>
           </Link>
         </div>
       </section>
 
-      {/* FOOTER */}
-      <footer style={S.footer}>
-        <span style={{ background: 'linear-gradient(135deg,#63B3ED,#B794F4)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', fontWeight: 700 }}>
-          CodeReview.ai
-        </span>
-        {' '}— Built with LLaMA 3.3 70B · FastAPI · React
+      {/* Footer */}
+      <footer style={{ borderTop: `1px solid ${c.border}`, padding: '28px 24px', textAlign: 'center' }}>
+        <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 13, color: c.muted2 }}>
+          <span style={{ background: `linear-gradient(135deg,${c.blue},${c.purple})`, WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', fontWeight: 700 }}>CodeReview.ai</span>
+          {' '}— Built with LLaMA 3.3 70B · FastAPI · React · MongoDB
+        </div>
       </footer>
     </div>
   );

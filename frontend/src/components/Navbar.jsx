@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 
 export default function Navbar() {
@@ -7,14 +7,16 @@ export default function Navbar() {
   const token = localStorage.getItem('token');
   const user = JSON.parse(localStorage.getItem('user') || '{}');
   const [open, setOpen] = useState(false);
+  const [scrolled, setScrolled] = useState(false);
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
 
-  // Track resize
-  useState(() => {
-    const handler = () => setIsMobile(window.innerWidth < 768);
-    window.addEventListener('resize', handler);
-    return () => window.removeEventListener('resize', handler);
-  });
+  useEffect(() => {
+    const onScroll = () => setScrolled(window.scrollY > 20);
+    const onResize = () => setIsMobile(window.innerWidth < 768);
+    window.addEventListener('scroll', onScroll);
+    window.addEventListener('resize', onResize);
+    return () => { window.removeEventListener('scroll', onScroll); window.removeEventListener('resize', onResize); };
+  }, []);
 
   const logout = () => {
     localStorage.removeItem('token');
@@ -23,153 +25,143 @@ export default function Navbar() {
     setOpen(false);
   };
 
-  const isActive = (path) => location.pathname === path;
+  const isActive = (p) => location.pathname === p;
+
+  const c = {
+    bg: scrolled ? 'rgba(3,5,8,0.95)' : 'rgba(3,5,8,0.7)',
+    border: scrolled ? 'rgba(255,255,255,0.08)' : 'rgba(255,255,255,0.04)',
+    blue: '#4F9CF9',
+    purple: '#A78BFA',
+    text: '#F1F5F9',
+    muted: '#64748B',
+  };
 
   return (
     <nav style={{
       position: 'sticky', top: 0, zIndex: 1000,
-      background: 'rgba(4,6,13,0.92)',
-      backdropFilter: 'blur(20px)',
-      WebkitBackdropFilter: 'blur(20px)',
-      borderBottom: '1px solid rgba(255,255,255,0.07)',
+      background: c.bg,
+      backdropFilter: 'blur(24px)',
+      WebkitBackdropFilter: 'blur(24px)',
+      borderBottom: `1px solid ${c.border}`,
       fontFamily: "'Outfit', sans-serif",
+      transition: 'background 0.3s, border-color 0.3s',
     }}>
       <div style={{
-        maxWidth: 1200, margin: '0 auto',
-        padding: '0 20px',
-        height: 62,
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
+        maxWidth: 1200, margin: '0 auto', padding: '0 24px',
+        height: 60, display: 'flex', alignItems: 'center', justifyContent: 'space-between',
       }}>
 
-        {/* ── LOGO ── */}
-        <Link to="/" style={{
-          display: 'flex', alignItems: 'center', gap: 9,
-          textDecoration: 'none', flexShrink: 0,
-        }}>
+        {/* Logo */}
+        <Link to="/" style={{ display: 'flex', alignItems: 'center', gap: 10, textDecoration: 'none' }}>
           <div style={{
-            width: 32, height: 32, borderRadius: 8, flexShrink: 0,
-            background: 'linear-gradient(135deg,#3182CE,#6B46C1)',
+            width: 30, height: 30, borderRadius: 7,
+            background: 'linear-gradient(135deg, #2563EB, #7C3AED)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontSize: 16, boxShadow: '0 4px 12px rgba(49,130,206,0.3)',
+            fontSize: 15, boxShadow: '0 0 20px rgba(79,156,249,0.25)',
           }}>⚡</div>
-          <span style={{
-            fontWeight: 800, fontSize: 17, letterSpacing: '-0.3px',
-            background: 'linear-gradient(135deg,#63B3ED,#B794F4)',
-            WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent',
-            whiteSpace: 'nowrap',
-          }}>Meridian.ai</span>
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: 0 }}>
+            <span style={{
+              fontWeight: 800, fontSize: 16, letterSpacing: -0.5,
+              background: 'linear-gradient(135deg, #4F9CF9, #A78BFA)',
+              WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent',
+            }}>CodeReview</span>
+            <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 14, color: '#4F9CF9', fontWeight: 400 }}>.ai</span>
+          </div>
         </Link>
 
-        {/* ── DESKTOP NAV ── */}
+        {/* Desktop */}
         {!isMobile && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
             {token ? (
               <>
-                {/* Nav links */}
                 {[
-                  { path: '/review', label: '⚡ Review' },
-                  { path: '/history', label: '📜 History' },
+                  { path: '/review', label: 'Review' },
+                  { path: '/history', label: 'History' },
                 ].map(({ path, label }) => (
                   <Link key={path} to={path} style={{
-                    textDecoration: 'none',
-                    padding: '6px 13px', borderRadius: 8, fontSize: 13, fontWeight: 500,
-                    color: isActive(path) ? '#63B3ED' : '#718096',
-                    background: isActive(path) ? 'rgba(99,179,237,0.08)' : 'transparent',
-                    border: isActive(path) ? '1px solid rgba(99,179,237,0.2)' : '1px solid transparent',
-                    transition: 'all 0.2s',
+                    textDecoration: 'none', padding: '6px 14px', borderRadius: 7,
+                    fontSize: 14, fontWeight: 500, transition: 'all 0.2s',
+                    color: isActive(path) ? '#4F9CF9' : c.muted,
+                    background: isActive(path) ? 'rgba(79,156,249,0.08)' : 'transparent',
+                    border: isActive(path) ? '1px solid rgba(79,156,249,0.2)' : '1px solid transparent',
                   }}>{label}</Link>
                 ))}
 
-                {/* Divider */}
-                <div style={{ width: 1, height: 18, background: 'rgba(255,255,255,0.1)', margin: '0 4px' }} />
+                <div style={{ width: 1, height: 16, background: 'rgba(255,255,255,0.08)', margin: '0 8px' }} />
 
-                {/* User chip */}
+                {/* User pill */}
                 <div style={{
                   display: 'flex', alignItems: 'center', gap: 7,
-                  padding: '4px 12px 4px 6px', borderRadius: 20,
+                  padding: '4px 10px 4px 5px', borderRadius: 20,
                   background: 'rgba(255,255,255,0.04)',
-                  border: '1px solid rgba(255,255,255,0.08)',
-                  height: 34,
+                  border: '1px solid rgba(255,255,255,0.07)',
                 }}>
-                  {/* Avatar */}
                   {user.avatar ? (
-                    <img
-                      src={user.avatar}
-                      alt=""
-                      style={{
-                        width: 22, height: 22, borderRadius: '50%',
-                        objectFit: 'cover', flexShrink: 0,
-                        border: '1px solid rgba(255,255,255,0.1)',
-                      }}
+                    <img src={user.avatar} alt=""
+                      style={{ width: 22, height: 22, borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }}
                     />
                   ) : (
                     <div style={{
                       width: 22, height: 22, borderRadius: '50%', flexShrink: 0,
-                      background: 'linear-gradient(135deg,#3182CE,#6B46C1)',
+                      background: 'linear-gradient(135deg,#2563EB,#7C3AED)',
                       display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      fontSize: 11, fontWeight: 700, color: 'white',
+                      fontSize: 10, fontWeight: 700, color: 'white',
                     }}>
-                      {(user.username || 'U')[0].toUpperCase()}
+                      {(user.username || user.githubUsername || 'U')[0].toUpperCase()}
                     </div>
                   )}
-                  <span style={{ fontSize: 13, color: '#CBD5E0', fontWeight: 500, maxWidth: 120, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  <span style={{ fontSize: 13, color: '#CBD5E0', maxWidth: 100, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                     {user.username || user.githubUsername || 'User'}
                   </span>
                 </div>
 
-                {/* Logout */}
                 <button onClick={logout} style={{
-                  padding: '6px 13px', borderRadius: 8, fontSize: 13, fontWeight: 500,
-                  background: 'transparent', border: '1px solid rgba(255,255,255,0.08)',
-                  color: '#718096', cursor: 'pointer', transition: 'all 0.2s',
+                  padding: '6px 14px', borderRadius: 7, fontSize: 13, fontWeight: 500,
+                  background: 'transparent', border: '1px solid rgba(255,255,255,0.07)',
+                  color: c.muted, cursor: 'pointer', transition: 'all 0.2s', marginLeft: 4,
                 }}
-                  onMouseEnter={e => { e.currentTarget.style.color = '#FC8181'; e.currentTarget.style.borderColor = 'rgba(252,129,129,0.3)'; }}
-                  onMouseLeave={e => { e.currentTarget.style.color = '#718096'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.08)'; }}
+                  onMouseEnter={e => { e.currentTarget.style.color = '#F87171'; e.currentTarget.style.borderColor = 'rgba(248,113,113,0.25)'; }}
+                  onMouseLeave={e => { e.currentTarget.style.color = c.muted; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.07)'; }}
                 >Logout</button>
               </>
             ) : (
               <>
                 <Link to="/login" style={{
-                  textDecoration: 'none', padding: '7px 16px', borderRadius: 8,
-                  fontSize: 14, fontWeight: 500, color: '#718096',
-                  border: '1px solid transparent', transition: 'color 0.2s',
+                  textDecoration: 'none', padding: '7px 16px', borderRadius: 7,
+                  fontSize: 14, fontWeight: 500, color: c.muted, transition: 'color 0.2s',
                 }}
-                  onMouseEnter={e => e.currentTarget.style.color = '#E2E8F0'}
-                  onMouseLeave={e => e.currentTarget.style.color = '#718096'}
+                  onMouseEnter={e => e.currentTarget.style.color = c.text}
+                  onMouseLeave={e => e.currentTarget.style.color = c.muted}
                 >Login</Link>
                 <Link to="/register" style={{
-                  textDecoration: 'none', padding: '7px 18px', borderRadius: 8,
-                  fontSize: 14, fontWeight: 700,
-                  background: 'linear-gradient(135deg,#3182CE,#6B46C1)',
-                  color: 'white', boxShadow: '0 4px 14px rgba(49,130,206,0.3)',
-                  transition: 'transform 0.2s, box-shadow 0.2s',
+                  textDecoration: 'none', padding: '7px 18px', borderRadius: 7,
+                  fontSize: 14, fontWeight: 700, marginLeft: 4,
+                  background: 'linear-gradient(135deg,#2563EB,#7C3AED)',
+                  color: 'white', boxShadow: '0 0 20px rgba(79,156,249,0.2)',
+                  transition: 'box-shadow 0.2s',
                 }}
-                  onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-1px)'; e.currentTarget.style.boxShadow = '0 6px 20px rgba(49,130,206,0.4)'; }}
-                  onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = '0 4px 14px rgba(49,130,206,0.3)'; }}
-                >Get Started</Link>
+                  onMouseEnter={e => e.currentTarget.style.boxShadow = '0 0 30px rgba(79,156,249,0.35)'}
+                  onMouseLeave={e => e.currentTarget.style.boxShadow = '0 0 20px rgba(79,156,249,0.2)'}
+                >Get started</Link>
               </>
             )}
           </div>
         )}
 
-        {/* ── MOBILE HAMBURGER ── */}
+        {/* Mobile hamburger */}
         {isMobile && (
           <button onClick={() => setOpen(!open)} style={{
             background: 'none', border: 'none', cursor: 'pointer',
-            padding: 6, color: '#718096', display: 'flex', flexDirection: 'column',
-            gap: 4, alignItems: 'center',
+            padding: 6, display: 'flex', flexDirection: 'column', gap: 5,
+            color: c.muted,
           }}>
-            {[0, 1, 2].map(i => (
+            {[0,1,2].map(i => (
               <span key={i} style={{
-                display: 'block', width: 18, height: 2,
+                display: 'block', width: 18, height: 1.5,
                 background: 'currentColor', borderRadius: 2,
                 transition: 'all 0.25s ease',
-                transform: open && i === 0 ? 'rotate(45deg) translate(4px, 4px)'
-                  : open && i === 1 ? 'scaleX(0)'
-                  : open && i === 2 ? 'rotate(-45deg) translate(4px, -4px)'
-                  : 'none',
+                transform: open && i === 0 ? 'rotate(45deg) translate(4.5px,4.5px)'
+                  : open && i === 1 ? 'scaleX(0)' : open && i === 2 ? 'rotate(-45deg) translate(4.5px,-4.5px)' : 'none',
                 opacity: open && i === 1 ? 0 : 1,
               }} />
             ))}
@@ -177,70 +169,38 @@ export default function Navbar() {
         )}
       </div>
 
-      {/* ── MOBILE MENU ── */}
+      {/* Mobile menu */}
       {isMobile && open && (
         <div style={{
           borderTop: '1px solid rgba(255,255,255,0.06)',
-          padding: '12px 20px 16px',
-          background: 'rgba(8,12,24,0.98)',
+          background: 'rgba(3,5,8,0.98)',
+          padding: '14px 24px 20px',
           animation: 'fadeUp 0.2s ease',
         }}>
           {token ? (
             <>
-              {/* User info */}
-              <div style={{
-                display: 'flex', alignItems: 'center', gap: 10,
-                padding: '8px 0 14px', borderBottom: '1px solid rgba(255,255,255,0.06)',
-                marginBottom: 10,
-              }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 0 14px', borderBottom: '1px solid rgba(255,255,255,0.06)', marginBottom: 10 }}>
                 {user.avatar ? (
-                  <img src={user.avatar} alt="" style={{ width: 36, height: 36, borderRadius: '50%', objectFit: 'cover' }} />
+                  <img src={user.avatar} alt="" style={{ width: 34, height: 34, borderRadius: '50%', objectFit: 'cover' }} />
                 ) : (
-                  <div style={{
-                    width: 36, height: 36, borderRadius: '50%', flexShrink: 0,
-                    background: 'linear-gradient(135deg,#3182CE,#6B46C1)',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    fontSize: 16, fontWeight: 700, color: 'white',
-                  }}>
+                  <div style={{ width: 34, height: 34, borderRadius: '50%', background: 'linear-gradient(135deg,#2563EB,#7C3AED)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, fontWeight: 700, color: 'white' }}>
                     {(user.username || 'U')[0].toUpperCase()}
                   </div>
                 )}
                 <div>
-                  <div style={{ fontSize: 14, fontWeight: 600, color: '#E2E8F0' }}>{user.username}</div>
-                  <div style={{ fontSize: 12, color: '#4A5568' }}>Signed in</div>
+                  <div style={{ fontSize: 14, fontWeight: 600, color: c.text }}>{user.username}</div>
+                  <div style={{ fontSize: 11, color: c.muted, fontFamily: "'JetBrains Mono',monospace" }}>signed in</div>
                 </div>
               </div>
-
-              {[
-                { path: '/review', label: '⚡ New Review' },
-                { path: '/history', label: '📜 History' },
-              ].map(({ path, label }) => (
-                <Link key={path} to={path} onClick={() => setOpen(false)} style={{
-                  display: 'block', padding: '10px 8px', borderRadius: 8,
-                  textDecoration: 'none', fontSize: 14, color: '#CBD5E0',
-                  marginBottom: 2,
-                }}>{label}</Link>
+              {[{path:'/review',label:'⚡ Review'},{path:'/history',label:'📜 History'}].map(({path,label})=>(
+                <Link key={path} to={path} onClick={()=>setOpen(false)} style={{ display:'block', padding:'10px 0', textDecoration:'none', fontSize:14, color:'#CBD5E0', borderBottom:'1px solid rgba(255,255,255,0.04)' }}>{label}</Link>
               ))}
-
-              <button onClick={logout} style={{
-                display: 'block', width: '100%', textAlign: 'left',
-                padding: '10px 8px', borderRadius: 8, border: 'none',
-                background: 'none', cursor: 'pointer', fontSize: 14, color: '#FC8181',
-                marginTop: 6,
-              }}>→ Logout</button>
+              <button onClick={logout} style={{ display:'block', width:'100%', textAlign:'left', padding:'12px 0', border:'none', background:'none', cursor:'pointer', fontSize:14, color:'#F87171', marginTop:4 }}>→ Logout</button>
             </>
           ) : (
             <>
-              <Link to="/login" onClick={() => setOpen(false)} style={{
-                display: 'block', padding: '10px 8px', borderRadius: 8,
-                textDecoration: 'none', fontSize: 14, color: '#CBD5E0', marginBottom: 6,
-              }}>Login</Link>
-              <Link to="/register" onClick={() => setOpen(false)} style={{
-                display: 'block', padding: '11px', borderRadius: 9,
-                textDecoration: 'none', fontSize: 14, fontWeight: 700,
-                background: 'linear-gradient(135deg,#3182CE,#6B46C1)',
-                color: 'white', textAlign: 'center',
-              }}>Get Started Free</Link>
+              <Link to="/login" onClick={()=>setOpen(false)} style={{ display:'block', padding:'10px 0', textDecoration:'none', fontSize:14, color:'#CBD5E0' }}>Login</Link>
+              <Link to="/register" onClick={()=>setOpen(false)} style={{ display:'block', padding:'11px', borderRadius:8, textDecoration:'none', fontSize:14, fontWeight:700, background:'linear-gradient(135deg,#2563EB,#7C3AED)', color:'white', textAlign:'center', marginTop:8 }}>Get Started Free</Link>
             </>
           )}
         </div>
