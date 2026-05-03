@@ -2,6 +2,8 @@ import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { login } from '../services/api';
 
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+
 export default function Login() {
   const navigate = useNavigate();
   const [form, setForm] = useState({ email: '', password: '' });
@@ -9,13 +11,38 @@ export default function Login() {
   const [loading, setLoading] = useState(false);
   const [showPass, setShowPass] = useState(false);
 
+  const validateForm = () => {
+    if (!form.email.trim()) {
+      setError('Email is required');
+      return false;
+    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) {
+      setError('Please enter a valid email address');
+      return false;
+    }
+    if (!form.password) {
+      setError('Password is required');
+      return false;
+    }
+    if (form.password.length < 6) {
+      setError('Password must be at least 6 characters');
+      return false;
+    }
+    return true;
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setLoading(true); setError('');
+    setError('');
+    
+    if (!validateForm()) {
+      return;
+    }
+
+    setLoading(true);
     try {
       const { data } = await login(form);
       localStorage.setItem('token', data.token);
-      localStorage.setItem('user', JSON.stringify(data));
       navigate('/review');
     } catch (err) {
       setError(err.response?.data?.message || 'Login failed. Please try again.');
@@ -102,7 +129,7 @@ export default function Login() {
   };
 
   return (
-    <div style={S.page}>
+    <main style={S.page}>
       <div style={S.wrap} className="fade-up">
         {/* Logo */}
         <div style={S.logoWrap}>
@@ -116,38 +143,60 @@ export default function Login() {
           <h1 style={S.heading}>Welcome back</h1>
           <p style={S.sub}>Sign in to your account to continue</p>
 
-          {error && <div style={S.error}>⚠️ {error}</div>}
+          {error && <div style={S.error} role="alert" aria-live="assertive">⚠️ {error}</div>}
 
-          <form onSubmit={handleSubmit}>
+          <form onSubmit={handleSubmit} noValidate>
             <div style={S.fieldWrap}>
-              <label style={S.label}>Email Address</label>
+              <label style={S.label} htmlFor="email-input">Email Address</label>
               <input
-                type="email" style={S.input} placeholder="you@example.com"
+                id="email-input"
+                type="email" 
+                style={S.input} 
+                placeholder="you@example.com"
                 value={form.email}
                 onChange={e => setForm({ ...form, email: e.target.value })}
-                onFocus={focusStyle} onBlur={blurStyle}
+                onFocus={focusStyle} 
+                onBlur={blurStyle}
                 required
+                aria-required="true"
+                aria-describedby={error ? 'error-message' : undefined}
               />
             </div>
 
             <div style={S.fieldWrap}>
-              <label style={S.label}>Password</label>
+              <label style={S.label} htmlFor="password-input">Password</label>
               <div style={S.passWrap}>
                 <input
-                  type={showPass ? 'text' : 'password'} style={{ ...S.input, paddingRight: 42 }}
+                  id="password-input"
+                  type={showPass ? 'text' : 'password'} 
+                  style={{ ...S.input, paddingRight: 42 }}
                   placeholder="••••••••"
                   value={form.password}
                   onChange={e => setForm({ ...form, password: e.target.value })}
-                  onFocus={focusStyle} onBlur={blurStyle}
+                  onFocus={focusStyle} 
+                  onBlur={blurStyle}
                   required
+                  aria-required="true"
+                  aria-describedby={error ? 'error-message' : undefined}
                 />
-                <button type="button" style={S.eyeBtn} onClick={() => setShowPass(!showPass)}>
+                <button 
+                  type="button" 
+                  style={S.eyeBtn} 
+                  onClick={() => setShowPass(!showPass)}
+                  aria-label={showPass ? 'Hide password' : 'Show password'}
+                  tabIndex={0}
+                >
                   {showPass ? '🙈' : '👁'}
                 </button>
               </div>
             </div>
 
-            <button type="submit" disabled={loading} style={{ ...S.btn, opacity: loading ? 0.7 : 1 }}>
+            <button 
+              type="submit" 
+              disabled={loading} 
+              style={{ ...S.btn, opacity: loading ? 0.7 : 1 }}
+              aria-busy={loading}
+            >
               {loading ? <><span className="spinner" /> Signing in...</> : 'Sign In →'}
             </button>
           </form>
@@ -160,11 +209,12 @@ export default function Login() {
 
           <button
             style={S.githubBtn}
-            onClick={() => window.location.href = 'http://localhost:5000/api/github/login'}
+            onClick={() => window.location.href = `${API_BASE_URL}/github/login`}
             onMouseEnter={e => { e.target.style.background = 'rgba(255,255,255,0.07)'; e.target.style.borderColor = 'rgba(255,255,255,0.15)'; }}
             onMouseLeave={e => { e.target.style.background = 'rgba(255,255,255,0.04)'; e.target.style.borderColor = 'rgba(255,255,255,0.1)'; }}
+            aria-label="Sign in with GitHub"
           >
-            <svg width="18" height="18" fill="currentColor" viewBox="0 0 24 24">
+            <svg width="18" height="18" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
               <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/>
             </svg>
             Continue with GitHub
@@ -176,6 +226,6 @@ export default function Login() {
           </p>
         </div>
       </div>
-    </div>
+    </main>
   );
 }

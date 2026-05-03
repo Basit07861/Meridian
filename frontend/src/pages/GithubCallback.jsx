@@ -7,24 +7,14 @@ export default function GitHubCallback() {
 
   useEffect(() => {
     const token = searchParams.get('token');
-    const userParam = searchParams.get('user');
 
     if (token) {
       localStorage.setItem('token', token);
-
-      if (userParam) {
-        try {
-          const user = JSON.parse(decodeURIComponent(userParam));
-          localStorage.setItem('user', JSON.stringify(user));
-        } catch (e) {
-          console.error('Failed to parse user data');
-        }
-      }
       navigate('/review');
     } else {
       navigate('/login');
     }
-  }, []);
+  }, [searchParams, navigate]);
 
   return (
     <div className="min-h-screen bg-gray-950 flex flex-col items-center justify-center gap-4">

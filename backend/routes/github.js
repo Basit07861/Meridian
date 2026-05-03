@@ -28,19 +28,8 @@ router.get('/callback',
         { expiresIn: '7d' }
       );
 
-      const userData = {
-        _id: req.user._id,
-        username: req.user.username,
-        email: req.user.email,
-        avatar: req.user.avatar,
-        githubUsername: req.user.githubUsername
-      };
-
-      // Send token and user data to frontend via URL params
-      const userDataEncoded = encodeURIComponent(JSON.stringify(userData));
-      res.redirect(
-        `http://localhost:5173/github/callback?token=${token}&user=${userDataEncoded}`
-      );
+      // Send only token to frontend (not user data in URL)
+      res.redirect(`http://localhost:5173/github/callback?token=${token}`);
     } catch (error) {
       console.error('GitHub callback error:', error);
       res.redirect('http://localhost:5173/login');

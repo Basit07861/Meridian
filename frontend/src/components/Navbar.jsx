@@ -5,22 +5,44 @@ export default function Navbar() {
   const navigate = useNavigate();
   const location = useLocation();
   const token = localStorage.getItem('token');
-  const user = JSON.parse(localStorage.getItem('user') || '{}');
   const [open, setOpen] = useState(false);
+  const [user, setUser] = useState(null);
   const [scrolled, setScrolled] = useState(false);
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+
+  // Fetch user profile from backend if token exists
+  useEffect(() => {
+    if (token && !user) {
+      const fetchUser = async () => {
+        try {
+          const response = await fetch('http://localhost:5000/api/auth/profile', {
+            headers: { 'Authorization': `Bearer ${token}` }
+          });
+          if (response.ok) {
+            const userData = await response.json();
+            setUser(userData);
+          }
+        } catch (error) {
+          console.error('Failed to fetch user profile:', error);
+        }
+      };
+      fetchUser();
+    }
+  }, [token, user]);
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 20);
     const onResize = () => setIsMobile(window.innerWidth < 768);
     window.addEventListener('scroll', onScroll);
     window.addEventListener('resize', onResize);
-    return () => { window.removeEventListener('scroll', onScroll); window.removeEventListener('resize', onResize); };
+    return () => { 
+      window.removeEventListener('scroll', onScroll); 
+      window.removeEventListener('resize', onResize); 
+    };
   }, []);
 
   const logout = () => {
     localStorage.removeItem('token');
-    localStorage.removeItem('user');
     navigate('/login');
     setOpen(false);
   };
@@ -64,7 +86,7 @@ export default function Navbar() {
               fontWeight: 800, fontSize: 16, letterSpacing: -0.5,
               background: 'linear-gradient(135deg, #4F9CF9, #A78BFA)',
               WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent',
-            }}>CodeReview</span>
+            }}>Meridian</span>
             <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 14, color: '#4F9CF9', fontWeight: 400 }}>.ai</span>
           </div>
         </Link>
@@ -96,7 +118,7 @@ export default function Navbar() {
                   background: 'rgba(255,255,255,0.04)',
                   border: '1px solid rgba(255,255,255,0.07)',
                 }}>
-                  {user.avatar ? (
+                  {user?.avatar ? (
                     <img src={user.avatar} alt=""
                       style={{ width: 22, height: 22, borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }}
                     />
@@ -107,11 +129,11 @@ export default function Navbar() {
                       display: 'flex', alignItems: 'center', justifyContent: 'center',
                       fontSize: 10, fontWeight: 700, color: 'white',
                     }}>
-                      {(user.username || user.githubUsername || 'U')[0].toUpperCase()}
+                      {(user?.username || user?.githubUsername || 'U')[0].toUpperCase()}
                     </div>
                   )}
                   <span style={{ fontSize: 13, color: '#CBD5E0', maxWidth: 100, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                    {user.username || user.githubUsername || 'User'}
+                    {user?.username || user?.githubUsername || 'User'}
                   </span>
                 </div>
 
@@ -180,15 +202,15 @@ export default function Navbar() {
           {token ? (
             <>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 0 14px', borderBottom: '1px solid rgba(255,255,255,0.06)', marginBottom: 10 }}>
-                {user.avatar ? (
+                {user?.avatar ? (
                   <img src={user.avatar} alt="" style={{ width: 34, height: 34, borderRadius: '50%', objectFit: 'cover' }} />
                 ) : (
                   <div style={{ width: 34, height: 34, borderRadius: '50%', background: 'linear-gradient(135deg,#2563EB,#7C3AED)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, fontWeight: 700, color: 'white' }}>
-                    {(user.username || 'U')[0].toUpperCase()}
+                    {(user?.username || user?.githubUsername || 'U')[0].toUpperCase()}
                   </div>
                 )}
                 <div>
-                  <div style={{ fontSize: 14, fontWeight: 600, color: c.text }}>{user.username}</div>
+                  <div style={{ fontSize: 14, fontWeight: 600, color: c.text }}>{user?.username || user?.githubUsername || 'User'}</div>
                   <div style={{ fontSize: 11, color: c.muted, fontFamily: "'JetBrains Mono',monospace" }}>signed in</div>
                 </div>
               </div>
