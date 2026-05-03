@@ -1,5 +1,269 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
+import { useTheme } from '../context/ThemeContext';
+
+export default function Navbar() {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const { theme, isDark, toggleTheme } = useTheme();
+  const token = localStorage.getItem('token');
+  const [open, setOpen] = useState(false);
+  const [user, setUser] = useState(null);
+  const [scrolled, setScrolled] = useState(false);
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+
+  // Fetch user profile from backend if token exists
+  useEffect(() => {
+    if (token && !user) {
+      const fetchUser = async () => {
+        try {
+          const response = await fetch('http://localhost:5000/api/auth/profile', {
+            headers: { 'Authorization': `Bearer ${token}` }
+          });
+          if (response.ok) {
+            const userData = await response.json();
+            setUser(userData);
+          }
+        } catch (error) {
+          console.error('Failed to fetch user profile:', error);
+        }
+      };
+      fetchUser();
+    }
+  }, [token, user]);
+
+  useEffect(() => {
+    const onScroll = () => setScrolled(window.scrollY > 20);
+    const onResize = () => setIsMobile(window.innerWidth < 768);
+    window.addEventListener('scroll', onScroll);
+    window.addEventListener('resize', onResize);
+    return () => { 
+      window.removeEventListener('scroll', onScroll); 
+      window.removeEventListener('resize', onResize); 
+    };
+  }, []);
+
+  const logout = () => {
+    localStorage.removeItem('token');
+    navigate('/login');
+    setOpen(false);
+  };
+
+  const isActive = (p) => location.pathname === p;
+
+  const navBg = scrolled ? theme.navBgScroll : theme.navBg;
+  const navBorder = scrolled ? theme.border2 : theme.border;
+
+  return (
+    <nav style={{
+      position: 'sticky', top: 0, zIndex: 1000,
+      background: navBg,
+      backdropFilter: 'blur(24px)',
+      WebkitBackdropFilter: 'blur(24px)',
+      borderBottom: `1px solid ${navBorder}`,
+      fontFamily: "'Outfit', sans-serif",
+      transition: 'background 0.3s, border-color 0.3s, color 0.3s',
+    }}>
+      <div style={{
+        maxWidth: 1200, margin: '0 auto', padding: '0 24px',
+        height: 60, display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+      }}>
+
+        {/* Logo */}
+        <Link to="/" style={{ display: 'flex', alignItems: 'center', gap: 10, textDecoration: 'none' }}>
+          <div style={{
+            width: 30, height: 30, borderRadius: 7,
+            background: isDark 
+              ? 'linear-gradient(135deg, #2563EB, #7C3AED)'
+              : 'linear-gradient(135deg, #2563EB, #7C3AED)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            fontSize: 15, boxShadow: isDark ? '0 0 20px rgba(79,156,249,0.25)' : '0 0 20px rgba(37,99,235,0.15)',
+          }}>⚡</div>
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: 0 }}>
+            <span style={{
+              fontWeight: 800, fontSize: 16, letterSpacing: -0.5,
+              color: theme.blue,
+            }}>Meridian</span>
+            <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 14, color: theme.blue, fontWeight: 400 }}>.ai</span>
+          </div>
+        </Link>
+
+        {/* Desktop */}
+        {!isMobile && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+            {token ? (
+              <>
+                {[
+                  { path: '/review', label: 'Review' },
+                  { path: '/history', label: 'History' },
+                ].map(({ path, label }) => (
+                  <Link key={path} to={path} style={{
+                    textDecoration: 'none', padding: '6px 14px', borderRadius: 7,
+                    fontSize: 14, fontWeight: 500, transition: 'all 0.2s',
+                    color: isActive(path) ? theme.blue : theme.textMuted,
+                    background: isActive(path) ? `rgba(37,99,235,${isDark ? 0.08 : 0.06})` : 'transparent',
+                    border: isActive(path) ? `1px solid rgba(37,99,235,${isDark ? 0.2 : 0.3})` : `1px solid transparent`,
+                  }}>{label}</Link>
+                ))}
+
+                <div style={{ width: 1, height: 16, background: theme.border2, margin: '0 8px' }} />
+
+                {/* User pill */}
+                <div style={{
+                  display: 'flex', alignItems: 'center', gap: 7,
+                  padding: '4px 10px 4px 5px', borderRadius: 20,
+                  background: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(15,23,42,0.04)',
+                  border: `1px solid ${theme.border2}`,
+                }}>
+                  {user?.avatar ? (
+                    <img src={user.avatar} alt=""
+                      style={{ width: 22, height: 22, borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }}
+                    />
+                  ) : (
+                    <div style={{
+                      width: 22, height: 22, borderRadius: '50%', flexShrink: 0,
+                      background: 'linear-gradient(135deg,#2563EB,#7C3AED)',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      fontSize: 10, fontWeight: 700, color: 'white',
+                    }}>
+                      {(user?.username || user?.githubUsername || 'U')[0].toUpperCase()}
+                    </div>
+                  )}
+                  <span style={{ fontSize: 13, color: theme.textMuted2, maxWidth: 100, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {user?.username || user?.githubUsername || 'User'}
+                  </span>
+                </div>
+
+                {/* Theme toggle */}
+                <button onClick={toggleTheme} style={{
+                  padding: '6px 12px', borderRadius: 7, fontSize: 14, fontWeight: 500,
+                  background: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(15,23,42,0.04)',
+                  border: `1px solid ${theme.border2}`,
+                  color: theme.textMuted, cursor: 'pointer', transition: 'all 0.2s', marginLeft: 4,
+                }}
+                  onMouseEnter={e => { e.currentTarget.style.color = theme.blue; e.currentTarget.style.borderColor = theme.border3; }}
+                  onMouseLeave={e => { e.currentTarget.style.color = theme.textMuted; e.currentTarget.style.borderColor = theme.border2; }}
+                  title={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
+                >{isDark ? '☀️' : '🌙'}</button>
+
+                <button onClick={logout} style={{
+                  padding: '6px 14px', borderRadius: 7, fontSize: 13, fontWeight: 500,
+                  background: 'transparent', border: `1px solid ${theme.border2}`,
+                  color: theme.textMuted, cursor: 'pointer', transition: 'all 0.2s', marginLeft: 4,
+                }}
+                  onMouseEnter={e => { e.currentTarget.style.color = theme.red; e.currentTarget.style.borderColor = `rgba(220, 38, 38, ${isDark ? 0.25 : 0.3})`; }}
+                  onMouseLeave={e => { e.currentTarget.style.color = theme.textMuted; e.currentTarget.style.borderColor = theme.border2; }}
+                >Logout</button>
+              </>
+            ) : (
+              <>
+                {/* Theme toggle */}
+                <button onClick={toggleTheme} style={{
+                  padding: '6px 12px', borderRadius: 7, fontSize: 14, fontWeight: 500,
+                  background: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(15,23,42,0.04)',
+                  border: `1px solid ${theme.border2}`,
+                  color: theme.textMuted, cursor: 'pointer', transition: 'all 0.2s', marginRight: 4,
+                }}
+                  onMouseEnter={e => { e.currentTarget.style.color = theme.blue; e.currentTarget.style.borderColor = theme.border3; }}
+                  onMouseLeave={e => { e.currentTarget.style.color = theme.textMuted; e.currentTarget.style.borderColor = theme.border2; }}
+                  title={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
+                >{isDark ? '☀️' : '🌙'}</button>
+
+                <Link to="/login" style={{
+                  textDecoration: 'none', padding: '7px 16px', borderRadius: 7,
+                  fontSize: 14, fontWeight: 500, color: theme.textMuted, transition: 'color 0.2s',
+                }}
+                  onMouseEnter={e => e.currentTarget.style.color = theme.text}
+                  onMouseLeave={e => e.currentTarget.style.color = theme.textMuted}
+                >Login</Link>
+                <Link to="/register" style={{
+                  textDecoration: 'none', padding: '7px 18px', borderRadius: 7,
+                  fontSize: 14, fontWeight: 700, marginLeft: 4,
+                  background: isDark 
+                    ? 'linear-gradient(135deg,#2563EB,#7C3AED)'
+                    : 'linear-gradient(135deg,#2563EB,#7C3AED)',
+                  color: 'white', boxShadow: isDark ? '0 0 20px rgba(79,156,249,0.2)' : '0 0 20px rgba(37,99,235,0.15)',
+                  transition: 'box-shadow 0.2s',
+                }}
+                  onMouseEnter={e => e.currentTarget.style.boxShadow = isDark ? '0 0 30px rgba(79,156,249,0.35)' : '0 0 30px rgba(37,99,235,0.25)'}
+                  onMouseLeave={e => e.currentTarget.style.boxShadow = isDark ? '0 0 20px rgba(79,156,249,0.2)' : '0 0 20px rgba(37,99,235,0.15)'}
+                >Get started</Link>
+              </>
+            )}
+          </div>
+        )}
+
+        {/* Mobile hamburger */}
+        {isMobile && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <button onClick={toggleTheme} style={{
+              padding: '6px 10px', borderRadius: 6, fontSize: 13, fontWeight: 500,
+              background: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(15,23,42,0.04)',
+              border: `1px solid ${theme.border2}`,
+              color: theme.textMuted, cursor: 'pointer', transition: 'all 0.2s',
+            }}
+              title={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
+            >{isDark ? '☀️' : '🌙'}</button>
+
+            <button onClick={() => setOpen(!open)} style={{
+              background: 'none', border: 'none', cursor: 'pointer',
+              padding: 6, display: 'flex', flexDirection: 'column', gap: 5,
+              color: theme.textMuted,
+            }}>
+              {[0,1,2].map(i => (
+                <span key={i} style={{
+                  display: 'block', width: 18, height: 1.5,
+                  background: 'currentColor', borderRadius: 2,
+                  transition: 'all 0.25s ease',
+                  transform: open && i === 0 ? 'rotate(45deg) translate(4.5px,4.5px)'
+                    : open && i === 1 ? 'scaleX(0)' : open && i === 2 ? 'rotate(-45deg) translate(4.5px,-4.5px)' : 'none',
+                  opacity: open && i === 1 ? 0 : 1,
+                }} />
+              ))}
+            </button>
+          </div>
+        )}
+      </div>
+
+      {/* Mobile menu */}
+      {isMobile && open && (
+        <div style={{
+          borderTop: `1px solid ${theme.border2}`,
+          background: theme.surface,
+          padding: '14px 24px 20px',
+          animation: 'fadeUp 0.2s ease',
+        }}>
+          {token ? (
+            <>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 0 14px', borderBottom: `1px solid ${theme.border}`, marginBottom: 10 }}>
+                {user?.avatar ? (
+                  <img src={user.avatar} alt="" style={{ width: 34, height: 34, borderRadius: '50%', objectFit: 'cover' }} />
+                ) : (
+                  <div style={{ width: 34, height: 34, borderRadius: '50%', background: 'linear-gradient(135deg,#2563EB,#7C3AED)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, fontWeight: 700, color: 'white' }}>
+                    {(user?.username || user?.githubUsername || 'U')[0].toUpperCase()}
+                  </div>
+                )}
+                <div>
+                  <div style={{ fontSize: 14, fontWeight: 600, color: theme.text }}>{user?.username || user?.githubUsername || 'User'}</div>
+                  <div style={{ fontSize: 11, color: theme.textMuted, fontFamily: "'JetBrains Mono',monospace" }}>signed in</div>
+                </div>
+              </div>
+              {[{path:'/review',label:'⚡ Review'},{path:'/history',label:'📜 History'}].map(({path,label})=>(
+                <Link key={path} to={path} onClick={()=>setOpen(false)} style={{ display:'block', padding:'10px 0', textDecoration:'none', fontSize:14, color:theme.textMuted2, borderBottom:`1px solid ${theme.border}` }}>{label}</Link>
+              ))}
+              <button onClick={logout} style={{ display:'block', width:'100%', textAlign:'left', padding:'12px 0', border:'none', background:'none', cursor:'pointer', fontSize:14, color:theme.red, marginTop:4 }}>→ Logout</button>
+            </>
+          ) : (
+            <>
+              <Link to="/login" onClick={()=>setOpen(false)} style={{ display:'block', padding:'10px 0', textDecoration:'none', fontSize:14, color:theme.textMuted2 }}>Login</Link>
+              <Link to="/register" onClick={()=>setOpen(false)} style={{ display:'block', padding:'11px', borderRadius:8, textDecoration:'none', fontSize:14, fontWeight:700, background:'linear-gradient(135deg,#2563EB,#7C3AED)', color:'white', textAlign:'center', marginTop:8 }}>Get Started Free</Link>
+            </>
+          )}
+        </div>
+      )}
+    </nav>
+  );
+}
 
 export default function Navbar() {
   const navigate = useNavigate();
