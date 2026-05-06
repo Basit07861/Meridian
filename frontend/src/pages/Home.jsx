@@ -159,6 +159,7 @@ export default function Home() {
             <span style={{ color: c.green }}>✓ ready</span>
           </div>
 
+
           {/* Main headline */}
           <h1 className="fade-up-1" style={{
             fontSize: 'clamp(40px, 7vw, 80px)',
