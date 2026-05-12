@@ -161,7 +161,7 @@ export default function Home() {
 
 
 
-
+  
           {/* Main headline */}
           <h1 className="fade-up-1" style={{
             fontSize: 'clamp(40px, 7vw, 80px)',

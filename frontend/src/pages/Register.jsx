@@ -20,6 +20,8 @@ export default function Register() {
     return s;
   };
 
+  
+
   const s = strengthScore();
   const strengthColor = ['', '#FC8181', '#F6AD55', '#63B3ED', '#68D391'][s];
   const strengthLabel = ['', 'Weak', 'Fair', 'Good', 'Strong'][s];
