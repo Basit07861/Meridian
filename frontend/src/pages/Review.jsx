@@ -34,12 +34,10 @@ function ReviewPanel({ review }) {
   const high = review.suggestions?.filter(s => s.severity === 'high').length || 0;
   const med  = review.suggestions?.filter(s => s.severity === 'medium').length || 0;
   const low  = review.suggestions?.filter(s => s.severity === 'low').length || 0;
-  const scoreColor = review.overallScore >= 70 ? '#68D391' : review.overallScore >= 40 ? '#F6E05E' : '#FC8181';
   const progressColor = review.overallScore >= 70 ? 'linear-gradient(90deg,#38A169,#68D391)' : review.overallScore >= 40 ? 'linear-gradient(90deg,#B7791F,#F6E05E)' : 'linear-gradient(90deg,#C53030,#FC8181)';
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16, animation: 'fadeUp 0.4s ease' }}>
-      {/* Score card */}
       <div style={{ background: '#0F1625', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 14, padding: 24 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16 }}>
           <div>
@@ -51,11 +49,9 @@ function ReviewPanel({ review }) {
           </div>
           <ScoreRing score={review.overallScore} />
         </div>
-        {/* Progress bar */}
         <div style={{ height: 5, background: 'rgba(255,255,255,0.06)', borderRadius: 3, overflow: 'hidden', marginBottom: 16 }}>
           <div style={{ height: '100%', borderRadius: 3, background: progressColor, width: `${review.overallScore}%`, transition: 'width 1s ease' }} />
         </div>
-        {/* Severity counts */}
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10 }}>
           {[
             { count: high, label: 'High', color: '#FC8181', bg: 'rgba(252,129,129,0.06)', border: 'rgba(252,129,129,0.15)' },
@@ -70,13 +66,11 @@ function ReviewPanel({ review }) {
         </div>
       </div>
 
-      {/* Summary */}
       <div style={{ background: '#0F1625', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 14, padding: 20 }}>
         <div style={{ fontSize: 11, color: '#4A5568', letterSpacing: 1.5, textTransform: 'uppercase', marginBottom: 10, fontWeight: 600 }}>AI Summary</div>
         <p style={{ fontSize: 14, color: '#CBD5E0', lineHeight: 1.7 }}>{review.summary}</p>
       </div>
 
-      {/* Suggestions */}
       <div style={{ background: '#0F1625', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 14, padding: 20 }}>
         <div style={{ fontSize: 11, color: '#4A5568', letterSpacing: 1.5, textTransform: 'uppercase', marginBottom: 14, fontWeight: 600 }}>
           Suggestions ({review.suggestions?.length || 0})
@@ -128,11 +122,12 @@ function ReviewPanel({ review }) {
   );
 }
 
+// ── FIXED DIFFVIEW — stable layout, no jumping ──
 function DiffView({ originalCode, review }) {
   const [selected, setSelected] = useState(0);
 
   if (!originalCode || !review?.suggestions?.length) return (
-    <div style={{ background: '#0F1625', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 14, padding: 40, textAlign: 'center' }}>
+    <div style={{ background: '#0F1625', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 14, padding: 40, textAlign: 'center', minHeight: 300, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
       <p style={{ color: '#4A5568', fontSize: 14 }}>No refactored code available</p>
     </div>
   );
@@ -140,7 +135,7 @@ function DiffView({ originalCode, review }) {
   const suggestionsWithFix = review.suggestions.filter(s => s.refactoredCode?.trim());
 
   if (suggestionsWithFix.length === 0) return (
-    <div style={{ background: '#0F1625', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 14, padding: 40, textAlign: 'center' }}>
+    <div style={{ background: '#0F1625', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 14, padding: 40, textAlign: 'center', minHeight: 300, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
       <p style={{ color: '#4A5568', fontSize: 14 }}>No refactored code available for this review</p>
     </div>
   );
@@ -156,16 +151,43 @@ function DiffView({ originalCode, review }) {
   };
 
   return (
-    <div style={{ background: '#0F1625', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 14, overflow: 'hidden', fontFamily: "'Outfit', sans-serif" }}>
+    // ── Outer container: fixed min-height so it never collapses ──
+    <div style={{
+      background: '#0F1625',
+      border: '1px solid rgba(255,255,255,0.07)',
+      borderRadius: 14,
+      overflow: 'hidden',
+      fontFamily: "'Outfit', sans-serif",
+      minHeight: 700,
+      maxWidth: 1000,
+      minWidth: 1000,
+      display: 'flex',
+      flexDirection: 'column',
+      whiteSpace: 'normal',
+    }}>
 
-      {/* Header */}
-      <div style={{ padding: '14px 20px', borderBottom: '1px solid rgba(255,255,255,0.07)', background: '#0C1220', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+      {/* ── Header ── */}
+      <div style={{
+        padding: '14px 20px',
+        borderBottom: '1px solid rgba(255,255,255,0.07)',
+        background: '#0C1220',
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+        flexShrink: 0,
+      }}>
         <h3 style={{ fontSize: 15, fontWeight: 700, color: '#F7FAFC', margin: 0 }}>🔄 Side-by-Side Diff View</h3>
-        <span style={{ fontSize: 12, color: '#4A5568' }}>{suggestionsWithFix.length} fix{suggestionsWithFix.length !== 1 ? 'es' : ''} available</span>
+        <span style={{ fontSize: 12, color: '#4A5568' }}>
+          {suggestionsWithFix.length} fix{suggestionsWithFix.length !== 1 ? 'es' : ''} available
+        </span>
       </div>
 
-      {/* Suggestion Selector */}
-      <div style={{ padding: '14px 20px', borderBottom: '1px solid rgba(255,255,255,0.07)' }}>
+      {/* ── Suggestion Selector: fixed height with scroll if many issues ── */}
+      <div style={{
+        padding: '14px 20px',
+        borderBottom: '1px solid rgba(255,255,255,0.07)',
+        flexShrink: 0,
+        maxHeight: 220,
+        overflowY: 'auto',
+      }}>
         <div style={{ fontSize: 11, color: '#4A5568', letterSpacing: 1.5, textTransform: 'uppercase', fontWeight: 600, marginBottom: 10 }}>
           Select Issue to View Fix
         </div>
@@ -174,19 +196,43 @@ function DiffView({ originalCode, review }) {
             const sc = severityColor[s.severity] || severityColor.low;
             const isActive = selected === i;
             return (
-              <button key={i} onClick={() => setSelected(i)} style={{
-                display: 'flex', alignItems: 'center', gap: 10,
-                padding: '10px 14px', borderRadius: 9, cursor: 'pointer',
-                background: isActive ? 'rgba(79,156,249,0.08)' : 'rgba(255,255,255,0.02)',
-                border: isActive ? '1px solid rgba(79,156,249,0.3)' : '1px solid rgba(255,255,255,0.06)',
-                textAlign: 'left', width: '100%', transition: 'all 0.2s',
-              }}>
-                <div style={{ width: 6, height: 6, borderRadius: '50%', flexShrink: 0, background: isActive ? '#4F9CF9' : 'rgba(255,255,255,0.15)' }} />
-                <span style={{ padding: '2px 8px', borderRadius: 100, fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, flexShrink: 0, background: sc.bg, color: sc.text, border: `1px solid ${sc.border}` }}>
-                  {s.severity}
-                </span>
-                {s.line > 0 && <span style={{ fontSize: 11, color: '#4A5568', fontFamily: "'JetBrains Mono',monospace", flexShrink: 0 }}>Line {s.line}</span>}
-                <span style={{ fontSize: 12, color: isActive ? '#CBD5E0' : '#718096', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>{s.issue}</span>
+              <button
+                key={i}
+                onClick={() => setSelected(i)}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 10,
+                  // ── Fixed height on every button — no jumping ──
+                  height: 44, minHeight: 44, maxHeight: 44,
+                  padding: '0 14px', borderRadius: 9, cursor: 'pointer',
+                  background: isActive ? 'rgba(79,156,249,0.08)' : 'rgba(255,255,255,0.02)',
+                  border: isActive ? '1px solid rgba(79,156,249,0.3)' : '1px solid rgba(255,255,255,0.06)',
+                  textAlign: 'left', width: '100%',
+                  transition: 'background 0.2s, border-color 0.2s',
+                  flexShrink: 0,
+                  overflow: 'hidden',
+                }}
+              >
+                <div style={{ width: 6, height: 6, borderRadius: '50%', flexShrink: 0, background: isActive ? '#4F9CF9' : 'rgba(255,255,255,0.15)', transition: 'background 0.2s' }} />
+                <span style={{
+                  padding: '2px 8px', borderRadius: 100, fontSize: 10, fontWeight: 700,
+                  textTransform: 'uppercase', letterSpacing: 1, flexShrink: 0,
+                  background: sc.bg, color: sc.text, border: `1px solid ${sc.border}`,
+                }}>{s.severity}</span>
+                {s.line > 0 && (
+                  <span style={{ fontSize: 11, color: '#4A5568', fontFamily: "'JetBrains Mono',monospace", flexShrink: 0 }}>
+                    L{s.line}
+                  </span>
+                )}
+                {/* Issue text — truncated so button height never changes */}
+                <span style={{
+                  fontSize: 12,
+                  color: isActive ? '#CBD5E0' : '#718096',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  whiteSpace: 'nowrap',
+                  flex: 1,
+                  transition: 'color 0.2s',
+                }}>{s.issue}</span>
                 {isActive && <span style={{ color: '#4F9CF9', fontSize: 12, flexShrink: 0 }}>→</span>}
               </button>
             );
@@ -194,22 +240,42 @@ function DiffView({ originalCode, review }) {
         </div>
       </div>
 
-      {/* Active fix description */}
-      <div style={{ padding: '12px 20px', background: 'rgba(79,156,249,0.03)', borderBottom: '1px solid rgba(255,255,255,0.06)', display: 'flex', gap: 8 }}>
-        <span style={{ color: '#34D399', fontSize: 13, flexShrink: 0 }}>✅</span>
-        <p style={{ fontSize: 13, color: '#9AE6B4', lineHeight: 1.6, margin: 0 }}>{activeSuggestion.suggestion}</p>
+      {/* ── Active fix description: fixed height, text truncated with scroll ── */}
+      <div style={{
+        padding: '12px 20px',
+        background: 'rgba(79,156,249,0.03)',
+        borderBottom: '1px solid rgba(255,255,255,0.06)',
+        display: 'flex', gap: 8, alignItems: 'flex-start',
+        // Fixed height — no layout shift when switching issues
+        minHeight: 64, maxHeight: 64,
+        overflow: 'hidden',
+        flexShrink: 0,
+      }}>
+        <span style={{ color: '#34D399', fontSize: 13, flexShrink: 0, paddingTop: 1 }}>✅</span>
+        <p style={{
+          fontSize: 13, color: '#9AE6B4', lineHeight: 1.5, margin: 0,
+          overflow: 'hidden', textOverflow: 'ellipsis',
+          display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical',
+        }}>{activeSuggestion.suggestion}</p>
       </div>
 
-      {/* Diff panels */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr' }}>
+      {/* ── Diff panels: both use the same fixed height ── */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', flex: 1, minHeight: 0 }}>
+
         {/* Original */}
-        <div style={{ borderRight: '1px solid rgba(255,255,255,0.06)' }}>
-          <div style={{ padding: '8px 14px', background: 'rgba(252,129,129,0.06)', borderBottom: '1px solid rgba(252,129,129,0.15)', display: 'flex', alignItems: 'center', gap: 6 }}>
+        <div style={{ borderRight: '1px solid rgba(255,255,255,0.06)', display: 'flex', flexDirection: 'column' }}>
+          <div style={{
+            padding: '8px 14px', flexShrink: 0,
+            background: 'rgba(252,129,129,0.06)',
+            borderBottom: '1px solid rgba(252,129,129,0.15)',
+            display: 'flex', alignItems: 'center', gap: 6,
+          }}>
             <div style={{ width: 6, height: 6, borderRadius: '50%', background: '#FC8181' }} />
             <span style={{ fontSize: 12, fontWeight: 600, color: '#FC8181' }}>Original Code</span>
             <span style={{ marginLeft: 'auto', fontSize: 10, color: '#4A5568', fontFamily: "'JetBrains Mono',monospace" }}>{origLines.length} lines</span>
           </div>
-          <div style={{ background: '#020408', padding: '12px 8px', maxHeight: 400, overflowY: 'auto', overflowX: 'auto' }}>
+          {/* Fixed height — always same regardless of content */}
+          <div style={{ background: '#020408', padding: '12px 8px', height: 340, overflowY: 'auto', overflowX: 'auto' }}>
             {origLines.map((line, i) => (
               <div key={i} style={{ display: 'flex', gap: 10, minHeight: 20 }}>
                 <span style={{ color: '#334155', fontSize: 11, minWidth: 28, textAlign: 'right', fontFamily: "'JetBrains Mono',monospace", userSelect: 'none', flexShrink: 0 }}>{i + 1}</span>
@@ -219,36 +285,62 @@ function DiffView({ originalCode, review }) {
           </div>
         </div>
 
-        {/* Refactored */}
-        <div>
-          <div style={{ padding: '8px 14px', background: 'rgba(52,211,153,0.06)', borderBottom: '1px solid rgba(52,211,153,0.15)', display: 'flex', alignItems: 'center', gap: 6 }}>
+        {/* Suggested Fix */}
+        <div style={{ display: 'flex', flexDirection: 'column' }}>
+          <div style={{
+            padding: '8px 14px', flexShrink: 0,
+            background: 'rgba(52,211,153,0.06)',
+            borderBottom: '1px solid rgba(52,211,153,0.15)',
+            display: 'flex', alignItems: 'center', gap: 6,
+          }}>
             <div style={{ width: 6, height: 6, borderRadius: '50%', background: '#34D399' }} />
             <span style={{ fontSize: 12, fontWeight: 600, color: '#34D399' }}>Suggested Fix</span>
             <span style={{ marginLeft: 'auto', fontSize: 10, color: '#4A5568', fontFamily: "'JetBrains Mono',monospace" }}>{fixLines.length} lines</span>
           </div>
-          <div style={{ background: '#020408', padding: '12px 8px', maxHeight: 400, overflowY: 'auto', overflowX: 'auto' }}>
+          {/* Same fixed height as original panel */}
+          <div style={{ background: '#020408', padding: '12px 8px', height: 340, overflowY: 'auto', overflowX: 'auto' }}>
             {fixLines.map((line, i) => (
               <div key={i} style={{ display: 'flex', gap: 10, minHeight: 20 }}>
                 <span style={{ color: '#334155', fontSize: 11, minWidth: 28, textAlign: 'right', fontFamily: "'JetBrains Mono',monospace", userSelect: 'none', flexShrink: 0 }}>{i + 1}</span>
-                <pre style={{ fontSize: 12, color: '#6EE7B7', fontFamily: "'JetBrains Mono',monospace", whiteSpace: 'pre', margin: 0, flex: 1 }}>{line || ' '}</pre>
+                <pre style={{ fontSize: 12, color: '#6EE7B7', fontFamily: "'JetBrains Mono',monospace", whiteSpace: 'pre-wrap', overflowWrap: 'break-word', wordBreak: 'break-word', margin: 0, flex: 1 }}>{line || ' '}</pre>
               </div>
             ))}
           </div>
         </div>
       </div>
 
-      {/* Footer nav */}
-      <div style={{ padding: '8px 20px', background: '#0C1220', borderTop: '1px solid rgba(255,255,255,0.06)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <span style={{ fontSize: 11, color: '#334155' }}>Showing fix {selected + 1} of {suggestionsWithFix.length}</span>
+      {/* ── Footer nav: always at bottom ── */}
+      <div style={{
+        padding: '10px 20px',
+        background: '#0C1220',
+        borderTop: '1px solid rgba(255,255,255,0.06)',
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+        flexShrink: 0,
+      }}>
+        <span style={{ fontSize: 11, color: '#334155' }}>
+          Showing fix {selected + 1} of {suggestionsWithFix.length}
+        </span>
         <div style={{ display: 'flex', gap: 8 }}>
-          <button onClick={() => setSelected(i => Math.max(0, i - 1))} disabled={selected === 0}
-            style={{ padding: '4px 12px', borderRadius: 6, fontSize: 12, fontWeight: 600, background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', color: selected === 0 ? '#334155' : '#A0AEC0', cursor: selected === 0 ? 'not-allowed' : 'pointer' }}>
-            ← Prev
-          </button>
-          <button onClick={() => setSelected(i => Math.min(suggestionsWithFix.length - 1, i + 1))} disabled={selected === suggestionsWithFix.length - 1}
-            style={{ padding: '4px 12px', borderRadius: 6, fontSize: 12, fontWeight: 600, background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', color: selected === suggestionsWithFix.length - 1 ? '#334155' : '#A0AEC0', cursor: selected === suggestionsWithFix.length - 1 ? 'not-allowed' : 'pointer' }}>
-            Next →
-          </button>
+          <button
+            onClick={() => setSelected(i => Math.max(0, i - 1))}
+            disabled={selected === 0}
+            style={{
+              padding: '5px 14px', borderRadius: 6, fontSize: 12, fontWeight: 600,
+              background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)',
+              color: selected === 0 ? '#334155' : '#A0AEC0',
+              cursor: selected === 0 ? 'not-allowed' : 'pointer',
+            }}
+          >← Prev</button>
+          <button
+            onClick={() => setSelected(i => Math.min(suggestionsWithFix.length - 1, i + 1))}
+            disabled={selected === suggestionsWithFix.length - 1}
+            style={{
+              padding: '5px 14px', borderRadius: 6, fontSize: 12, fontWeight: 600,
+              background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)',
+              color: selected === suggestionsWithFix.length - 1 ? '#334155' : '#A0AEC0',
+              cursor: selected === suggestionsWithFix.length - 1 ? 'not-allowed' : 'pointer',
+            }}
+          >Next →</button>
         </div>
       </div>
     </div>
@@ -301,8 +393,6 @@ export default function Review() {
     if (!showRepo && repos.length === 0) loadRepos();
     setShowRepo(!showRepo);
   };
-
-  
 
   const browseRepo = async (repo, path = '') => {
     try {
@@ -407,7 +497,6 @@ export default function Review() {
   return (
     <div style={S.page}>
       <div style={S.container}>
-        {/* Header */}
         <div style={S.header} className="fade-up">
           <div>
             <h1 style={S.title}>Code Review</h1>
@@ -416,7 +505,6 @@ export default function Review() {
           <button onClick={() => navigate('/history')} style={S.historyBtn}>📜 View History</button>
         </div>
 
-        {/* Grid */}
         <div style={{ ...S.grid, gridTemplateColumns: window.innerWidth < 900 ? '1fr' : '1fr 1fr' }}>
           {/* LEFT */}
           <div className="fade-up-1">
@@ -436,7 +524,6 @@ export default function Review() {
               {showRepo ? 'Hide GitHub Picker' : 'Load from GitHub'}
             </button>
 
-            {/* Repo picker */}
             {showRepo && (
               <div style={S.repoPanel}>
                 <div style={{ fontSize: 13, fontWeight: 600, color: '#A0AEC0', marginBottom: 10 }}>📁 Your Repositories</div>
@@ -469,7 +556,6 @@ export default function Review() {
               </div>
             )}
 
-            {/* Code editor */}
             <div style={S.codeWrap}>
               <div style={S.codeHeader}>
                 <div style={S.codeLabel}>
