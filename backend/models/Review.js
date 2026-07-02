@@ -4,7 +4,13 @@ const SuggestionSchema = new mongoose.Schema({
   line: Number,           // Which line has the issue
   severity: {
     type: String,
-    enum: ['high', 'medium', 'low']  // Only these 3 values allowed
+    enum: ['high', 'medium', 'low'],  // Only these 3 values allowed
+    default: 'low'
+  },
+  category: {
+    type: String,
+    enum: ['security', 'accessibility', 'performance', 'code_quality', 'ui_ux', 'best_practice', 'bug'],
+    default: 'code_quality'
   },
   issue: String,          // What the problem is
   suggestion: String,     // How to fix it

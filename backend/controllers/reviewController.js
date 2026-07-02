@@ -5,6 +5,8 @@ const axios = require('axios');
 const AI_SERVICE_URL = process.env.AI_SERVICE_URL || 'http://localhost:8000';
 const MAX_CODE_LINES = 500;
 const AI_TIMEOUT_MS = 130000;
+const ALLOWED_SOURCE_TYPES = ['paste', 'upload', 'github'];
+const ALLOWED_CATEGORIES = ['security', 'accessibility', 'performance', 'code_quality', 'ui_ux', 'best_practice', 'bug'];
 
 const normalizeLineEndings = (value) => {
   return value.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
@@ -50,6 +52,28 @@ const normalizeSeverity = (severity) => {
   return 'low';
 };
 
+const normalizeCategory = (category) => {
+  const value = typeof category === 'string'
+    ? category.toLowerCase().trim().replace(/[\s-]+/g, '_')
+    : 'code_quality';
+
+  if (ALLOWED_CATEGORIES.includes(value)) {
+    return value;
+  }
+
+  return 'code_quality';
+};
+
+const normalizeSourceType = (sourceType) => {
+  const value = cleanText(sourceType, 'paste').toLowerCase();
+
+  if (ALLOWED_SOURCE_TYPES.includes(value)) {
+    return value;
+  }
+
+  return 'paste';
+};
+
 const normalizeSuggestions = (suggestions) => {
   if (!Array.isArray(suggestions)) {
     return [];
@@ -58,6 +82,7 @@ const normalizeSuggestions = (suggestions) => {
   return suggestions.map((item) => ({
     line: Number.isFinite(Number(item?.line)) ? Number(item.line) : 1,
     severity: normalizeSeverity(item?.severity),
+    category: normalizeCategory(item?.category),
     issue: cleanText(item?.issue, 'Issue detected.'),
     suggestion: cleanText(item?.suggestion, 'Please review and improve this section.'),
     refactoredCode: typeof item?.refactoredCode === 'string' ? item.refactoredCode : '',
@@ -168,7 +193,7 @@ const analyzeCode = async (req, res) => {
       suggestions: reviewData.suggestions,
       overallScore: reviewData.overallScore,
       summary: reviewData.summary,
-      sourceType: cleanText(sourceType, 'paste'),
+      sourceType: normalizeSourceType(sourceType),
       githubRepo: githubRepo || null,
       shareableLink: crypto.randomBytes(16).toString('hex'),
     });

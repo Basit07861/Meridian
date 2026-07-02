@@ -90,6 +90,10 @@ Review requirements:
 - Check GIGW-aligned accessibility/usability for frontend/UI code.
 - Check validation, error handling, maintainability, performance, and best practices.
 - Prefer fewer high-quality suggestions over many generic suggestions.
+- Use HIGH severity only for exploitable security risks, authentication/authorization bypass, data exposure, destructive bugs, or code that can crash/fail in normal use.
+- Use MEDIUM severity for real functional problems, missing important validation, weak error handling, or maintainability issues that can cause incorrect behavior.
+- Use LOW severity for minor edge cases, optional validation improvements, naming/style cleanup, or best-practice suggestions in otherwise safe code.
+- Do not mark clean code as medium/high only because extra validation could be added.
 - Use line 0 only for file-level/general issues.
 - Every suggestion must have non-empty refactoredCode.
 - Do not invent issues that are not supported by the code.
@@ -186,53 +190,92 @@ def normalize_suggestions(raw_suggestions: Any, language: str) -> List[Dict[str,
 
 
 def calculate_score(suggestions: List[Dict[str, Any]], ai_score: Any = None) -> int:
-    """Use a deterministic score so Good/Fair/Poor is consistent and explainable."""
+    """Use deterministic scoring so Good/Fair/Poor is consistent and explainable.
+
+    Tuning goal:
+    - Dangerous security/bug-heavy code should become Poor.
+    - Clean code with only minor validation or best-practice suggestions should remain Good.
+    - AI-provided score is used only as a small signal, not the source of truth.
+    """
 
     if not suggestions:
-        return 92
+        return 94
 
     score = 100
 
+    # Medium/low penalties are intentionally lighter so clean code is not punished too much
+    # for optional validation or maintainability improvements.
     severity_penalty = {
-        "high": 16,
-        "medium": 8,
-        "low": 3,
+        "high": 18,
+        "medium": 5,
+        "low": 1,
     }
 
+    # Security and real bugs get extra penalty because mentor feedback focused on
+    # OWASP-style risk, safe coding, accessibility, and code quality standards.
     category_extra_penalty = {
-        "security": 5,
-        "bug": 4,
+        "security": 7,
+        "bug": 6,
         "accessibility": 2,
         "performance": 2,
-        "code_quality": 0,
         "ui_ux": 1,
+        "code_quality": 0,
         "best_practice": 0,
     }
 
+    high_count = 0
+    medium_count = 0
+    low_count = 0
+    security_or_bug_count = 0
+
     for suggestion in suggestions:
-        score -= severity_penalty.get(suggestion.get("severity"), 6)
-        score -= category_extra_penalty.get(suggestion.get("category"), 0)
+        severity = suggestion.get("severity", "medium")
+        category = suggestion.get("category", "code_quality")
 
-    high_count = sum(1 for item in suggestions if item.get("severity") == "high")
-    medium_count = sum(1 for item in suggestions if item.get("severity") == "medium")
+        score -= severity_penalty.get(severity, 5)
+        score -= category_extra_penalty.get(category, 0)
 
+        if severity == "high":
+            high_count += 1
+        elif severity == "medium":
+            medium_count += 1
+        elif severity == "low":
+            low_count += 1
+
+        if category in {"security", "bug"}:
+            security_or_bug_count += 1
+
+    # Extra penalties for clusters of serious findings.
     if high_count >= 3:
-        score -= 10
+        score -= 12
     elif high_count >= 1:
-        score -= 5
+        score -= 6
 
-    if medium_count >= 5:
-        score -= 5
+    if medium_count >= 6:
+        score -= 4
 
     deterministic_score = max(0, min(100, score))
 
-    # AI score is only used as a weak signal, not the source of truth.
+    # Guardrail: when there are no high/security/bug findings, the code should not
+    # be marked too harshly only because of minor validation or best-practice notes.
+    if high_count == 0 and security_or_bug_count == 0:
+        if len(suggestions) <= 4 and medium_count <= 3:
+            deterministic_score = max(deterministic_score, 86)
+        elif len(suggestions) <= 6:
+            deterministic_score = max(deterministic_score, 82)
+
+    # AI score is a weak signal only. It can slightly adjust the calculated score,
+    # but it should not drag safe code below the guardrail.
     if ai_score is not None:
         ai_score = clamp_number(ai_score, default=deterministic_score)
-        deterministic_score = round((deterministic_score * 0.75) + (ai_score * 0.25))
+        blended_score = round((deterministic_score * 0.85) + (ai_score * 0.15))
+
+        if high_count == 0 and security_or_bug_count == 0:
+            blended_score = max(blended_score, deterministic_score - 3)
+
+        deterministic_score = blended_score
 
     return max(0, min(100, deterministic_score))
-
 
 def normalize_result(result: Dict[str, Any], language: str) -> Dict[str, Any]:
     suggestions = normalize_suggestions(result.get("suggestions"), language)
