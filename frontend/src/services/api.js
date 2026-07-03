@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 const api = axios.create({
-  baseURL: 'http://localhost:5000/api',
+  baseURL: import.meta.env.VITE_API_URL || 'http://localhost:5000/api',
 });
 
 // Attach token automatically to protected requests
@@ -29,6 +29,15 @@ export const login = (data) => {
 
 export const verifyLoginCode = (data) => {
   return api.post('/auth/verify-login-code', data);
+};
+
+
+export const forgotPassword = (data) => {
+  return api.post('/auth/forgot-password', data);
+};
+
+export const resetPassword = (token, data) => {
+  return api.post(`/auth/reset-password/${token}`, data);
 };
 
 export const getProfile = () => {
