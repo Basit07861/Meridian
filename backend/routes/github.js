@@ -6,19 +6,22 @@ const { protect } = require('../middleware/auth');
 const {
   getRepos,
   getRepoContents,
-  getFileContent
+  getFileContent,
 } = require('../controllers/githubController');
 
-// Redirect to GitHub login
+const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:5173';
+
+// Redirect to GitHub login. prompt=select_account helps during testing/account switching.
 router.get('/login', passport.authenticate('github', {
-  scope: ['user:email', 'repo']
+  scope: ['user:email', 'repo'],
+  prompt: 'select_account',
 }));
 
 // GitHub callback
 router.get('/callback',
   passport.authenticate('github', {
-    failureRedirect: 'http://localhost:5173/login',
-    session: true
+    failureRedirect: `${FRONTEND_URL}/login`,
+    session: true,
   }),
   (req, res) => {
     try {
@@ -28,11 +31,10 @@ router.get('/callback',
         { expiresIn: '7d' }
       );
 
-      // Send only token to frontend (not user data in URL)
-      res.redirect(`http://localhost:5173/github/callback?token=${token}`);
+      res.redirect(`${FRONTEND_URL}/github/callback?token=${token}`);
     } catch (error) {
-      console.error('GitHub callback error:', error);
-      res.redirect('http://localhost:5173/login');
+      console.error('GitHub callback error:', error.message);
+      res.redirect(`${FRONTEND_URL}/login`);
     }
   }
 );
