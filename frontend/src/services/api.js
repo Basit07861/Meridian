@@ -92,6 +92,10 @@ export const shareReviewById = (id) => {
   return api.post(`/review/share/${id}`);
 };
 
+export const getPublicReview = (token) => {
+  return api.get(`/review/public/${token}`);
+};
+
 // =====================
 // GitHub APIs
 // =====================
