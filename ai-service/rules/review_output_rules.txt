@@ -9,6 +9,40 @@ Every suggestion must include:
 - suggestion: clear fix explanation
 - refactoredCode: corrected code for the issue; never empty
 
+Scoring Rules:
+
+Start from 100 and subtract points based on severity.
+
+Critical issues:
+- SQL injection: -40 to -60
+- Hardcoded secrets/passwords/API keys: -25 to -40
+- Use of eval or arbitrary code execution: -40 to -60
+- Authentication or authorization bypass: -40 to -60
+
+High issues:
+- XSS risk, including dangerouslySetInnerHTML without sanitization: -25 to -40
+- Plaintext password handling: -30 to -50
+- Unsafe file deletion or file access: -25 to -40
+- Bare except blocks that hide errors: -15 to -25
+
+Medium issues:
+- Missing input validation: -10 to -20
+- Poor error handling: -10 to -20
+- Repeated API calls due to missing dependency array: -10 to -20
+- Returning internal mutable state: -10 to -15
+
+Low issues:
+- Naming issues: -3 to -8
+- Minor code duplication: -5 to -10
+- Formatting/style issues: -2 to -5
+
+Important score limits:
+- Do not give a score above 80 if the code contains a high-severity security issue.
+- Do not give a score above 60 if the code contains a critical vulnerability.
+- Do not give a score above 50 if the code uses eval, SQL injection, or unsafe file operations.
+- Mark React dangerouslySetInnerHTML without sanitization as HIGH security issue.
+- Mark bare except blocks that hide real errors as MEDIUM or HIGH depending on risk.
+
 Severity guidance:
 - high: exploitable security bug, data loss risk, auth bypass, destructive bug, app crash in common flow
 - medium: important reliability, validation, accessibility, maintainability, or performance issue
