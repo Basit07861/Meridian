@@ -2,12 +2,13 @@ const User = require('../models/User');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
-const { sendLoginCodeEmail } = require('../utils/emailService');
+const { sendLoginCodeEmail, sendPasswordResetEmail } = require('../utils/emailService');
 
 const ALLOWED_AVATARS = User.ALLOWED_AVATARS || ['avatar-1', 'avatar-2', 'avatar-3', 'avatar-4', 'avatar-5', 'avatar-6'];
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const LOGIN_CODE_EXPIRY_MINUTES = 10;
 const MAX_LOGIN_CODE_ATTEMPTS = 5;
+const RESET_TOKEN_EXPIRY_MINUTES = 15;
 
 // Generate JWT token
 const generateToken = (id) => {
@@ -38,10 +39,33 @@ const maskEmail = (email) => {
 
 const generateLoginCode = () => crypto.randomInt(100000, 1000000).toString();
 
+const generateResetToken = () => crypto.randomBytes(32).toString('hex');
+
+const hashToken = (token) => crypto.createHash('sha256').update(token).digest('hex');
+
 const clearLoginCode = (user) => {
   user.loginCodeHash = undefined;
   user.loginCodeExpiresAt = undefined;
   user.loginCodeAttempts = 0;
+};
+
+const clearPasswordResetToken = (user) => {
+  user.resetPasswordTokenHash = undefined;
+  user.resetPasswordExpiresAt = undefined;
+};
+
+const findUserByLoginIdentifier = async (identifier) => {
+  const cleanIdentifier = cleanString(identifier);
+
+  if (!cleanIdentifier) {
+    return null;
+  }
+
+  const query = EMAIL_REGEX.test(cleanIdentifier)
+    ? { email: cleanIdentifier.toLowerCase() }
+    : { username: cleanIdentifier };
+
+  return User.findOne(query);
 };
 
 const buildUserResponse = (user, includeToken = false) => {
@@ -102,6 +126,10 @@ const validateRegisterInput = ({ username, email, password }) => {
     return 'Username must be between 3 and 40 characters.';
   }
 
+  if (!/^[A-Za-z0-9_.-]+$/.test(cleanUsername)) {
+    return 'Username can only contain letters, numbers, dots, underscores, and hyphens.';
+  }
+
   if (!EMAIL_REGEX.test(cleanEmail)) {
     return 'Please enter a valid email address.';
   }
@@ -154,26 +182,26 @@ const register = async (req, res) => {
   }
 };
 
-// LOGIN STEP 1: verify email/password and send authentication code
+// LOGIN STEP 1: verify email/username + password and send authentication code
 const login = async (req, res) => {
-  const cleanEmail = cleanString(req.body.email).toLowerCase();
+  const identifier = cleanString(req.body.identifier || req.body.email);
   const { password } = req.body;
 
-  if (!cleanEmail || typeof password !== 'string') {
-    return res.status(400).json({ message: 'Email and password are required.' });
+  if (!identifier || typeof password !== 'string') {
+    return res.status(400).json({ message: 'Email/username and password are required.' });
   }
 
   try {
-    const user = await User.findOne({ email: cleanEmail });
+    const user = await findUserByLoginIdentifier(identifier);
 
     if (!user || !user.password) {
-      return res.status(400).json({ message: 'Invalid email or password' });
+      return res.status(400).json({ message: 'Invalid email/username or password' });
     }
 
     const isMatch = await bcrypt.compare(password, user.password);
 
     if (!isMatch) {
-      return res.status(400).json({ message: 'Invalid email or password' });
+      return res.status(400).json({ message: 'Invalid email/username or password' });
     }
 
     const loginCode = generateLoginCode();
@@ -196,6 +224,7 @@ const login = async (req, res) => {
         ? 'Authentication code generated. SMTP is not configured, so check the backend console for the code.'
         : 'Authentication code sent to your email.',
       email: maskEmail(user.email),
+      identifier,
     });
   } catch (error) {
     return handleAuthError(error, res, 'Failed to send authentication code.');
@@ -204,11 +233,11 @@ const login = async (req, res) => {
 
 // LOGIN STEP 2: verify authentication code and issue JWT token
 const verifyLoginCode = async (req, res) => {
-  const cleanEmail = cleanString(req.body.email).toLowerCase();
+  const identifier = cleanString(req.body.identifier || req.body.email);
   const code = cleanString(req.body.code);
 
-  if (!cleanEmail || !code) {
-    return res.status(400).json({ message: 'Email and authentication code are required.' });
+  if (!identifier || !code) {
+    return res.status(400).json({ message: 'Email/username and authentication code are required.' });
   }
 
   if (!/^\d{6}$/.test(code)) {
@@ -216,7 +245,7 @@ const verifyLoginCode = async (req, res) => {
   }
 
   try {
-    const user = await User.findOne({ email: cleanEmail });
+    const user = await findUserByLoginIdentifier(identifier);
 
     if (!user || !user.loginCodeHash || !user.loginCodeExpiresAt) {
       return res.status(400).json({ message: 'Authentication code is invalid or expired. Please login again.' });
@@ -253,10 +282,107 @@ const verifyLoginCode = async (req, res) => {
   }
 };
 
+// FORGOT PASSWORD: create reset token and email reset link
+const forgotPassword = async (req, res) => {
+  const identifier = cleanString(req.body.identifier || req.body.email);
+
+  if (!identifier) {
+    return res.status(400).json({ message: 'Email or username is required.' });
+  }
+
+  try {
+    const user = await findUserByLoginIdentifier(identifier);
+
+    // Do not reveal whether an unknown email/username exists.
+    if (!user) {
+      return res.json({
+        message: 'If an email/password account exists for this email or username, a reset link has been sent.',
+      });
+    }
+
+    if (user.githubId && !user.password) {
+      return res.status(400).json({
+        message: 'This account uses GitHub login. Please reset your password through GitHub.',
+      });
+    }
+
+    const resetToken = generateResetToken();
+    user.resetPasswordTokenHash = hashToken(resetToken);
+    user.resetPasswordExpiresAt = new Date(Date.now() + RESET_TOKEN_EXPIRY_MINUTES * 60 * 1000);
+    await user.save({ validateBeforeSave: false });
+
+    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+    const resetLink = `${frontendUrl}/reset-password/${resetToken}`;
+
+    const emailResult = await sendPasswordResetEmail({
+      to: user.email,
+      username: user.displayName || user.username,
+      resetLink,
+      expiresInMinutes: RESET_TOKEN_EXPIRY_MINUTES,
+    });
+
+    return res.json({
+      message: emailResult.devFallback
+        ? 'Password reset link generated. SMTP is not configured, so check the backend console for the reset link.'
+        : 'Password reset link sent to your registered email.',
+      email: maskEmail(user.email),
+      devFallback: emailResult.devFallback,
+    });
+  } catch (error) {
+    return handleAuthError(error, res, 'Failed to create password reset link.');
+  }
+};
+
+// RESET PASSWORD: verify token and set new password
+const resetPassword = async (req, res) => {
+  const token = cleanString(req.params.token || req.body.token);
+  const { password } = req.body;
+
+  if (!token) {
+    return res.status(400).json({ message: 'Password reset token is required.' });
+  }
+
+  if (typeof password !== 'string' || !password) {
+    return res.status(400).json({ message: 'New password is required.' });
+  }
+
+  if (password.length < 6 || password.length > 72) {
+    return res.status(400).json({ message: 'Password must be between 6 and 72 characters.' });
+  }
+
+  try {
+    const tokenHash = hashToken(token);
+    const user = await User.findOne({
+      resetPasswordTokenHash: tokenHash,
+      resetPasswordExpiresAt: { $gt: new Date() },
+    });
+
+    if (!user) {
+      return res.status(400).json({ message: 'Password reset link is invalid or expired.' });
+    }
+
+    if (user.githubId && !user.password) {
+      clearPasswordResetToken(user);
+      await user.save({ validateBeforeSave: false });
+      return res.status(400).json({ message: 'This account uses GitHub login. Please reset your password through GitHub.' });
+    }
+
+    const salt = await bcrypt.genSalt(10);
+    user.password = await bcrypt.hash(password, salt);
+    clearPasswordResetToken(user);
+    clearLoginCode(user);
+    await user.save({ validateBeforeSave: false });
+
+    return res.json({ message: 'Password reset successful. You can now login with your new password.' });
+  } catch (error) {
+    return handleAuthError(error, res, 'Failed to reset password.');
+  }
+};
+
 // GET PROFILE
 const getProfile = async (req, res) => {
   try {
-    const user = await User.findById(req.user.id).select('-password -githubToken -loginCodeHash');
+    const user = await User.findById(req.user.id).select('-password -githubToken -loginCodeHash -resetPasswordTokenHash');
 
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
@@ -329,4 +455,12 @@ const updateProfile = async (req, res) => {
   }
 };
 
-module.exports = { register, login, verifyLoginCode, getProfile, updateProfile };
+module.exports = {
+  register,
+  login,
+  verifyLoginCode,
+  forgotPassword,
+  resetPassword,
+  getProfile,
+  updateProfile,
+};

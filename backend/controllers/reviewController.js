@@ -282,10 +282,37 @@ const shareReview = async (req, res) => {
   }
 };
 
+const getPublicReview = async (req, res) => {
+  try {
+    const token = cleanText(req.params.token, '');
+
+    if (!token || !/^[a-f0-9]{32}$/i.test(token)) {
+      return res.status(400).json({ message: 'Invalid share link.' });
+    }
+
+    const review = await Review.findOne({
+      shareableLink: token,
+      isPublic: true,
+    })
+      .select('-user')
+      .lean();
+
+    if (!review) {
+      return res.status(404).json({ message: 'Shared review not found or no longer public.' });
+    }
+
+    return res.json(review);
+  } catch (error) {
+    console.error('Public review error:', error.message);
+    return handleDatabaseError(error, res, 'Failed to fetch the shared review.');
+  }
+};
+
 module.exports = {
   analyzeCode,
   getReviews,
   getReview,
   deleteReview,
   shareReview,
+  getPublicReview,
 };

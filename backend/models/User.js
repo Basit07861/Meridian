@@ -67,6 +67,13 @@ const UserSchema = new mongoose.Schema({
     type: Number,
     default: 0,
   },
+  resetPasswordTokenHash: {
+    type: String,
+    // Temporary hashed password reset token for email/password accounts.
+  },
+  resetPasswordExpiresAt: {
+    type: Date,
+  },
   createdAt: {
     type: Date,
     default: Date.now,
