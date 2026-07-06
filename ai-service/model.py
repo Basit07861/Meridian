@@ -12,7 +12,7 @@ load_dotenv()
 MODEL_NAME = os.getenv("GROQ_MODEL", "llama-3.3-70b-versatile")
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 MAX_SUGGESTIONS = 12
-SCORING_VERSION = "deterministic-static-v5"
+SCORING_VERSION = "hybrid-issue-based-v6"
 
 SEVERITIES = {"high", "medium", "low"}
 CATEGORIES = {
@@ -93,23 +93,32 @@ Required JSON format:
 }}
 
 Review requirements:
+- Review the code according to its actual language, framework, and runtime behavior.
 - Check security using OWASP-style risks.
 - Check GIGW-aligned accessibility/usability for frontend/UI code.
 - Check validation, error handling, maintainability, performance, and best practices.
 - Prefer fewer high-quality suggestions over many generic suggestions.
-- Use HIGH severity only for exploitable security risks, authentication/authorization bypass, data exposure, destructive bugs, unsafe eval/exec, SQL/NoSQL injection, hardcoded secrets, or code that can crash/fail in normal use.
-- Use MEDIUM severity for real functional problems, missing important validation, weak error handling, or maintainability issues that can cause incorrect behavior.
+- Use HIGH severity only for exploitable security risks, authentication/authorization bypass, data exposure, destructive bugs, unsafe eval/exec, SQL/NoSQL injection, hardcoded secrets, unsafe file operations, or code that can crash/fail in normal use.
+- Use MEDIUM severity for real functional problems, missing important validation, weak error handling, avoidable performance problems, or maintainability issues that can cause incorrect behavior.
 - Use LOW severity for minor edge cases, optional validation improvements, naming/style cleanup, or best-practice suggestions in otherwise safe code.
 - Do not mark clean code as medium/high only because extra validation could be added.
 - Do not punish already well-structured code harshly.
+- Do not invent issues that are not supported by the code.
 - Use line 0 only for file-level/general issues.
 - Every suggestion must have non-empty refactoredCode.
-- Do not invent issues that are not supported by the code.
 - Do not include more than {MAX_SUGGESTIONS} suggestions.
 
+Language/framework checks to remember:
+- React/frontend: flag unsafe HTML rendering, missing effect dependency arrays, unhandled loading/error states, token exposure, hardcoded URLs, and accessibility issues.
+- Backend/API: flag injection, missing auth/authorization, unsafe error leakage, plaintext password handling, hardcoded secrets, weak validation, and insecure CORS.
+- Python: flag eval/exec, bare except, swallowed exceptions, off-by-one runtime errors, unsafe file/command operations, unsafe deserialization, and missing validation.
+- Java/Spring: flag SQL/JPQL injection, missing validation, unsafe entity exposure, weak password handling, missing authorization, broad exception handling, and resource leaks.
+- C/C++: flag buffer overflow risks, unsafe string functions, memory leaks, dangling pointers, unchecked input, and undefined behavior.
+
 Important scoring note:
-- The final score is calculated by Meridian.ai using deterministic static scoring.
+- The final score is calculated by Meridian.ai using hybrid issue-based scoring.
 - Your overallScore is accepted only as informational and will not directly control the final score.
+- Accurate severity/category classification is important because the final deterministic score uses your detected suggestions.
 
 Submitted {language} code:
 {code}"""
@@ -200,6 +209,7 @@ def normalize_suggestions(raw_suggestions: Any, language: str) -> List[Dict[str,
             "clean up",
         ]
 
+        # Only downgrade clearly optional comments for non-security/non-bug categories.
         if category in {"code_quality", "best_practice", "ui_ux"}:
             if any(word in issue_lower or word in suggestion_lower for word in minor_words):
                 severity = "low"
@@ -223,295 +233,671 @@ def normalize_suggestions(raw_suggestions: Any, language: str) -> List[Dict[str,
     return normalized_suggestions
 
 
-def count_small_functions(code: str) -> int:
-    function_patterns = [
-        r"\bfunction\s+[A-Za-z_][A-Za-z0-9_]*\s*\(",
-        r"\bconst\s+[A-Za-z_][A-Za-z0-9_]*\s*=\s*\(",
-        r"\bclass\s+[A-Za-z_][A-Za-z0-9_]*",
-        r"\bdef\s+[A-Za-z_][A-Za-z0-9_]*\s*\(",
-        r"\bpublic\s+\w+[<\w,\s>]*\s+[A-Za-z_][A-Za-z0-9_]*\s*\(",
-        r"\bprivate\s+\w+[<\w,\s>]*\s+[A-Za-z_][A-Za-z0-9_]*\s*\(",
-    ]
+def find_line_number(code: str, keywords: List[str]) -> int:
+    lower_keywords = [keyword.lower() for keyword in keywords]
 
-    count = 0
-    for pattern in function_patterns:
-        count += len(re.findall(pattern, code))
+    for index, line in enumerate(code.splitlines(), start=1):
+        line_lower = line.lower()
+        if any(keyword in line_lower for keyword in lower_keywords):
+            return index
 
-    return count
+    return 0
 
 
-def has_security_risk(code: str, lower_code: str) -> bool:
-    risky_literals = [
-        "eval(",
-        "exec(",
-        "secret_key",
-        "api_key",
-        "db_password",
-        "select * from",
-        "delete from",
-        "res.send(err",
-        "err.message",
-        "token: secret",
-    ]
+def has_existing_issue(suggestions: List[Dict[str, Any]], keywords: List[str]) -> bool:
+    lower_keywords = [keyword.lower() for keyword in keywords]
 
-    if any(pattern in lower_code for pattern in risky_literals):
-        return True
-
-    sql_concat = re.search(
-        r"(select|delete|update|insert)\s+.*(\+|\$\{).*(req\.|username|password|id|email)",
-        lower_code,
-        re.DOTALL,
-    )
-    if sql_concat:
-        return True
-
-    hardcoded_secret = re.search(
-        r"(secret|secret_key|api_key|token|db_password|password)\s*[:=]\s*[\"'][^\"']{4,}[\"']",
-        lower_code,
-    )
-    if hardcoded_secret:
-        return True
+    for item in suggestions:
+        combined = f"{item.get('issue', '')} {item.get('suggestion', '')}".lower()
+        if any(keyword in combined for keyword in lower_keywords):
+            return True
 
     return False
 
 
-def detect_static_signals(code: str) -> Dict[str, bool]:
+def append_static_suggestion(
+    suggestions: List[Dict[str, Any]],
+    line: int,
+    severity: str,
+    category: str,
+    issue: str,
+    suggestion: str,
+    refactored_code: str,
+    duplicate_keywords: List[str],
+) -> None:
+    if len(suggestions) >= MAX_SUGGESTIONS:
+        return
+
+    if has_existing_issue(suggestions, duplicate_keywords):
+        return
+
+    suggestions.append(
+        {
+            "line": line,
+            "severity": severity,
+            "category": category,
+            "issue": issue,
+            "suggestion": suggestion,
+            "refactoredCode": refactored_code,
+        }
+    )
+
+
+def detect_static_risk_flags(code: str) -> Dict[str, bool]:
     lower = code.lower()
 
+    sql_injection = bool(
+        re.search(
+            r"(select|insert|update|delete)\s+.*(\+|\$\{|%s|\.format\s*\(|format\s*\(|f[\"']).*(req\.|request\.|input|params|body|username|password|email|user_id|userid|id|name)",
+            lower,
+            re.DOTALL,
+        )
+    )
+
+    hardcoded_secret = bool(
+        re.search(
+            r"\b(secret|secret_key|api_key|apikey|jwt_secret|token|private_key|db_password|password|passwd|pwd)\b\s*[:=]\s*[\"'][^\"']{4,}[\"']",
+            lower,
+        )
+    )
+
+    unsafe_eval_exec = "eval(" in lower or "exec(" in lower
+
+    command_execution = any(
+        pattern in lower
+        for pattern in [
+            "os.system(",
+            "subprocess.",
+            "shell=true",
+            "child_process.exec",
+            "runtime.getruntime().exec",
+            "processbuilder",
+        ]
+    )
+
+    xss_risk = (
+        "dangerouslysetinnerhtml" in lower
+        or "document.write" in lower
+        or (".innerhtml" in lower and "dompurify" not in lower and "sanitize" not in lower)
+    )
+
+    unsafe_file_operation = any(
+        pattern in lower
+        for pattern in [
+            "os.remove(",
+            "unlink(",
+            "deletefile(",
+            "files.delete(",
+        ]
+    ) and any(
+        source in lower
+        for source in [
+            "input(",
+            "req.",
+            "request.",
+            "params",
+            "body",
+            "filename",
+            "filepath",
+        ]
+    )
+
+    unsafe_deserialization = (
+        "pickle.loads" in lower
+        or "pickle.load" in lower
+        or ("yaml.load(" in lower and "safeloader" not in lower and "safe_load" not in lower)
+        or "objectinputstream" in lower
+        or "binaryformatter" in lower
+    )
+
+    weak_crypto = any(
+        pattern in lower
+        for pattern in [
+            "md5(",
+            "sha1(",
+            "messagedigest.getinstance(\"md5\")",
+            "messagedigest.getinstance('md5')",
+            "messagedigest.getinstance(\"sha-1\")",
+            "messagedigest.getinstance('sha-1')",
+        ]
+    )
+
+    broad_exception_swallow = bool(
+        re.search(r"except\s*:\s*(pass|return\s+none)?", lower)
+        or re.search(r"catch\s*\([^)]*\)\s*\{\s*\}", lower)
+    )
+
+    off_by_one_index_loop = bool(
+        re.search(r"range\s*\(\s*len\s*\([^)]+\)\s*\+\s*1\s*\)", lower)
+    )
+
+    react_missing_effect_dependencies = bool(
+        "useeffect" in lower
+        and re.search(r"useeffect\s*\(\s*\(\s*\)\s*=>\s*\{[\s\S]*?\}\s*\)\s*;?", lower)
+        and not re.search(r"useeffect\s*\([\s\S]*?,\s*\[[\s\S]*?\]\s*\)", lower)
+    )
+
+    local_storage_token = "localstorage.getitem" in lower and "token" in lower
+    hardcoded_localhost = "http://localhost" in lower or "https://localhost" in lower
+    unsafe_error_leak = "res.send(err" in lower or "err.message" in lower or "error.stack" in lower
+
+    plaintext_password_query = bool(
+        "password" in lower
+        and ("select" in lower or "where" in lower)
+        and not any(pattern in lower for pattern in ["bcrypt", "argon2", "passwordencoder", "hash", "compare"])
+    )
+
+    manual_resource_close = bool(
+        "open(" in lower and ".close()" in lower and "with open" not in lower
+    )
+
     return {
-        "uses_items": "items" in lower and ("price" in lower or "quantity" in lower),
-        "has_cart_validation": "validatecartitems" in lower,
-        "has_customer_validation": "validatecustomer" in lower,
-        "has_custom_validation_error": "validationerror" in lower and "extends error" in lower,
-        "has_array_check": "array.isarray" in lower,
-        "has_empty_cart_check": "items.length === 0" in lower or "items.length == 0" in lower,
-        "has_number_validation": any(
-            token in lower
-            for token in [
-                "typeof item.price",
-                "typeof item.quantity",
-                "ispositivenumber",
-                "number.isfinite",
-                "price < 0",
-                "quantity <= 0",
-                "quantity < 0",
-            ]
-        ),
-        "uses_reduce": ".reduce(" in lower,
-        "uses_map": ".map(" in lower or "return items.map" in lower,
-        "uses_trim": ".trim()" in lower,
-        "uses_lowercase": ".tolowercase()" in lower,
-        "uses_math_max": "math.max" in lower,
-        "has_default_discount": "discountamount = 0" in lower,
-        "has_module_exports": "module.exports" in lower,
-        "has_created_at": "createdat" in lower,
-        "has_security_risk": has_security_risk(code, lower),
+        "sql_injection": sql_injection,
+        "hardcoded_secret": hardcoded_secret,
+        "unsafe_eval_exec": unsafe_eval_exec,
+        "command_execution": command_execution,
+        "xss_risk": xss_risk,
+        "unsafe_file_operation": unsafe_file_operation,
+        "unsafe_deserialization": unsafe_deserialization,
+        "weak_crypto": weak_crypto,
+        "broad_exception_swallow": broad_exception_swallow,
+        "off_by_one_index_loop": off_by_one_index_loop,
+        "react_missing_effect_dependencies": react_missing_effect_dependencies,
+        "local_storage_token": local_storage_token,
+        "hardcoded_localhost": hardcoded_localhost,
+        "unsafe_error_leak": unsafe_error_leak,
+        "plaintext_password_query": plaintext_password_query,
+        "manual_resource_close": manual_resource_close,
     }
 
 
-def calculate_static_score(code: str) -> int:
-    """Deterministic score from code patterns.
+def augment_static_suggestions(
+    suggestions: List[Dict[str, Any]], code: str, language: str
+) -> List[Dict[str, Any]]:
+    """Add language-neutral static findings when the LLM misses common high-risk patterns."""
 
-    This avoids large score variation when the LLM returns different suggestions
-    for the same submitted code.
+    if not isinstance(code, str) or not code.strip():
+        return suggestions
 
-    Target ranking:
-    - Very bad security code: 0-30
-    - Bad code: 30-55
-    - Medium code: 55-75
-    - Good code: 85-94
-    - Very good code: 94-100
+    flags = detect_static_risk_flags(code)
+
+    if flags["unsafe_eval_exec"]:
+        append_static_suggestion(
+            suggestions,
+            find_line_number(code, ["eval(", "exec("]),
+            "high",
+            "security",
+            "Unsafe dynamic code execution detected.",
+            "Avoid eval/exec. Parse or validate input explicitly and use safe alternatives.",
+            build_refactored_fallback(
+                "Unsafe dynamic code execution detected.",
+                "Replace eval/exec with a safe parser or allowlisted operation mapping.",
+                language,
+            ),
+            ["eval", "exec", "dynamic code execution"],
+        )
+
+    if flags["sql_injection"]:
+        append_static_suggestion(
+            suggestions,
+            find_line_number(code, ["select", "insert", "update", "delete"]),
+            "high",
+            "security",
+            "Possible SQL injection through string-built database query.",
+            "Use parameterized queries/prepared statements and never concatenate user input into SQL.",
+            build_refactored_fallback(
+                "Possible SQL injection through string-built database query.",
+                "Use parameterized queries/prepared statements for all user-controlled values.",
+                language,
+            ),
+            ["sql injection", "parameterized", "prepared statement"],
+        )
+
+    if flags["hardcoded_secret"]:
+        append_static_suggestion(
+            suggestions,
+            find_line_number(code, ["secret", "api_key", "apikey", "jwt_secret", "password", "token"]),
+            "high",
+            "security",
+            "Hardcoded secret or credential detected.",
+            "Move secrets to environment variables or a secure secrets manager and rotate exposed values.",
+            build_refactored_fallback(
+                "Hardcoded secret or credential detected.",
+                "Read credentials from environment variables or a secrets manager instead of source code.",
+                language,
+            ),
+            ["hardcoded secret", "credential", "api key", "jwt secret", "hardcoded password"],
+        )
+
+    if flags["xss_risk"]:
+        append_static_suggestion(
+            suggestions,
+            find_line_number(code, ["dangerouslysetinnerhtml", "innerhtml", "document.write"]),
+            "high",
+            "security",
+            "Unsafe HTML rendering may allow cross-site scripting.",
+            "Avoid raw HTML rendering or sanitize trusted HTML with a proven sanitizer such as DOMPurify.",
+            build_refactored_fallback(
+                "Unsafe HTML rendering may allow cross-site scripting.",
+                "Render text safely or sanitize HTML before injecting it into the DOM.",
+                language,
+            ),
+            ["xss", "cross-site scripting", "dangerouslysetinnerhtml", "innerhtml"],
+        )
+
+    if flags["command_execution"]:
+        append_static_suggestion(
+            suggestions,
+            find_line_number(code, ["os.system", "subprocess", "child_process.exec", "runtime.getruntime", "processbuilder"]),
+            "high",
+            "security",
+            "Command execution with user-controllable input can lead to command injection.",
+            "Avoid shell execution. Use safe library APIs or strict allowlists for commands and arguments.",
+            build_refactored_fallback(
+                "Command execution with user-controllable input can lead to command injection.",
+                "Replace shell command execution with safe APIs and validate all arguments.",
+                language,
+            ),
+            ["command injection", "command execution", "os.system", "subprocess", "processbuilder"],
+        )
+
+    if flags["unsafe_file_operation"]:
+        append_static_suggestion(
+            suggestions,
+            find_line_number(code, ["os.remove", "unlink", "deletefile", "files.delete"]),
+            "high",
+            "security",
+            "Unsafe file deletion or file operation uses user-controllable input.",
+            "Validate paths, restrict operations to an allowed directory, and prevent path traversal/destructive actions.",
+            build_refactored_fallback(
+                "Unsafe file deletion or file operation uses user-controllable input.",
+                "Validate and constrain file paths before performing destructive file operations.",
+                language,
+            ),
+            ["unsafe file", "file deletion", "path traversal", "os.remove", "unlink"],
+        )
+
+    if flags["unsafe_deserialization"]:
+        append_static_suggestion(
+            suggestions,
+            find_line_number(code, ["pickle.load", "pickle.loads", "yaml.load", "objectinputstream", "binaryformatter"]),
+            "high",
+            "security",
+            "Unsafe deserialization can allow code execution or object injection.",
+            "Use safe formats such as JSON, safe loaders, schema validation, or signed trusted payloads only.",
+            build_refactored_fallback(
+                "Unsafe deserialization can allow code execution or object injection.",
+                "Use safe deserialization methods and validate payloads before processing.",
+                language,
+            ),
+            ["deserialization", "pickle", "yaml.load", "objectinputstream", "binaryformatter"],
+        )
+
+    if flags["plaintext_password_query"]:
+        append_static_suggestion(
+            suggestions,
+            find_line_number(code, ["password", "select", "where"]),
+            "high",
+            "security",
+            "Password handling appears to compare or query plaintext passwords.",
+            "Store password hashes using bcrypt/Argon2/PasswordEncoder and verify using a secure compare function.",
+            build_refactored_fallback(
+                "Password handling appears to compare or query plaintext passwords.",
+                "Use a strong password hashing algorithm and never store or query plaintext passwords.",
+                language,
+            ),
+            ["plaintext password", "password hash", "bcrypt", "argon2", "passwordencoder"],
+        )
+
+    if flags["broad_exception_swallow"]:
+        append_static_suggestion(
+            suggestions,
+            find_line_number(code, ["except:", "catch"]),
+            "medium",
+            "bug",
+            "Broad or empty exception handling hides real failures.",
+            "Catch specific exceptions, log useful context, and handle the error instead of silently ignoring it.",
+            build_refactored_fallback(
+                "Broad or empty exception handling hides real failures.",
+                "Catch specific exceptions and handle/log them instead of using empty handlers.",
+                language,
+            ),
+            ["bare except", "empty catch", "swallow", "exception"],
+        )
+
+    if flags["off_by_one_index_loop"]:
+        append_static_suggestion(
+            suggestions,
+            find_line_number(code, ["range(len", "+ 1"]),
+            "high",
+            "bug",
+            "Loop range can access one index past the end of the collection.",
+            "Iterate directly over the collection or use range(len(items)) without adding one.",
+            build_refactored_fallback(
+                "Loop range can access one index past the end of the collection.",
+                "Use direct iteration or correct loop bounds to avoid runtime index errors.",
+                language,
+            ),
+            ["off-by-one", "index past", "range(len"],
+        )
+
+    if flags["react_missing_effect_dependencies"]:
+        append_static_suggestion(
+            suggestions,
+            find_line_number(code, ["useeffect"]),
+            "medium",
+            "performance",
+            "React useEffect appears to be missing a dependency array.",
+            "Add the correct dependency array to avoid repeated execution and unnecessary API calls.",
+            build_refactored_fallback(
+                "React useEffect appears to be missing a dependency array.",
+                "Pass a dependency array to useEffect, for example [] for one-time loading or specific dependencies.",
+                language,
+            ),
+            ["useeffect", "dependency array", "repeated api"],
+        )
+
+    if flags["local_storage_token"]:
+        append_static_suggestion(
+            suggestions,
+            find_line_number(code, ["localstorage.getitem", "token"]),
+            "medium",
+            "security",
+            "Authentication token is read from localStorage.",
+            "Prefer secure, HttpOnly, SameSite cookies for sensitive tokens when possible and reduce XSS exposure.",
+            build_refactored_fallback(
+                "Authentication token is read from localStorage.",
+                "Store sensitive tokens using safer session handling and protect against XSS.",
+                language,
+            ),
+            ["localstorage", "token storage", "httponly"],
+        )
+
+    if flags["unsafe_error_leak"]:
+        append_static_suggestion(
+            suggestions,
+            find_line_number(code, ["res.send(err", "err.message", "error.stack"]),
+            "medium",
+            "security",
+            "Raw error details may be exposed to clients.",
+            "Return a safe generic error message to users and log detailed errors only on the server.",
+            build_refactored_fallback(
+                "Raw error details may be exposed to clients.",
+                "Send generic error responses and keep detailed diagnostics in server logs.",
+                language,
+            ),
+            ["error leak", "raw error", "stack trace", "res.send(err"],
+        )
+
+    if flags["weak_crypto"]:
+        append_static_suggestion(
+            suggestions,
+            find_line_number(code, ["md5", "sha1", "sha-1"]),
+            "medium",
+            "security",
+            "Weak cryptographic hash function detected.",
+            "Use modern algorithms such as SHA-256 for checksums or bcrypt/Argon2 for passwords.",
+            build_refactored_fallback(
+                "Weak cryptographic hash function detected.",
+                "Replace MD5/SHA-1 with modern algorithms suitable for the use case.",
+                language,
+            ),
+            ["weak crypto", "md5", "sha1", "sha-1"],
+        )
+
+    if flags["manual_resource_close"]:
+        append_static_suggestion(
+            suggestions,
+            find_line_number(code, ["open(", ".close()"]),
+            "low",
+            "best_practice",
+            "File resource is manually closed instead of using a safer context manager pattern.",
+            "Use a context manager/try-with-resources pattern so the resource closes even when errors occur.",
+            build_refactored_fallback(
+                "File resource is manually closed instead of using a safer context manager pattern.",
+                "Use with-open/try-with-resources style resource management.",
+                language,
+            ),
+            ["context manager", "try-with-resources", "manual close"],
+        )
+
+    if flags["hardcoded_localhost"]:
+        append_static_suggestion(
+            suggestions,
+            find_line_number(code, ["http://localhost", "https://localhost"]),
+            "low",
+            "best_practice",
+            "Hardcoded localhost URL reduces deployability.",
+            "Move API base URLs to environment-specific configuration.",
+            build_refactored_fallback(
+                "Hardcoded localhost URL reduces deployability.",
+                "Read service URLs from environment configuration.",
+                language,
+            ),
+            ["localhost", "environment configuration", "base url"],
+        )
+
+    return suggestions[:MAX_SUGGESTIONS]
+
+
+def calculate_score(
+    suggestions: List[Dict[str, Any]],
+    code: str,
+    language: str,
+    ai_score: Any = None,
+) -> int:
+    """Hybrid issue-based score.
+
+    The final score is based on actual detected issues, their severity/category,
+    and generic language-neutral static risk caps. It avoids sample-specific
+    scoring so it works more consistently across JavaScript, Python, Java,
+    React, Node.js, Spring Boot, C/C++, C#, and other languages.
     """
 
     if not isinstance(code, str) or not code.strip():
         return 0
 
-    lower = code.lower()
-    signals = detect_static_signals(code)
-    score = 76
+    if not isinstance(suggestions, list):
+        suggestions = []
 
-    # -----------------------
-    # Severe security penalties
-    # -----------------------
+    flags = detect_static_risk_flags(code)
+    score = 100
 
-    if "eval(" in lower or "exec(" in lower:
+    high_count = 0
+    medium_count = 0
+    low_count = 0
+    security_high_count = 0
+
+    for item in suggestions[:MAX_SUGGESTIONS]:
+        severity = item.get("severity", "medium")
+        category = item.get("category", "code_quality")
+        issue_text = f"{item.get('issue', '')} {item.get('suggestion', '')}".lower()
+
+        if severity == "high":
+            high_count += 1
+
+            if category == "security":
+                security_high_count += 1
+                score -= 30
+            elif category == "bug":
+                score -= 25
+            elif category == "performance":
+                score -= 22
+            else:
+                score -= 20
+
+        elif severity == "medium":
+            medium_count += 1
+
+            if category == "security":
+                score -= 16
+            elif category in {"bug", "performance", "accessibility"}:
+                score -= 12
+            else:
+                score -= 9
+
+        else:
+            low_count += 1
+            score -= 4
+
+        if any(
+            keyword in issue_text
+            for keyword in [
+                "sql injection",
+                "nosql injection",
+                "command injection",
+                "xss",
+                "cross-site scripting",
+                "hardcoded secret",
+                "hardcoded password",
+                "plaintext password",
+                "unsafe deserialization",
+                "eval",
+                "exec",
+                "authentication bypass",
+                "authorization bypass",
+                "path traversal",
+                "arbitrary file",
+                "remote code execution",
+            ]
+        ):
+            score -= 8
+
+    # Direct static penalties catch risks even when the model under-reports them.
+    if flags["unsafe_eval_exec"]:
+        score -= 28
+
+    if flags["sql_injection"]:
+        score -= 35
+
+    if flags["hardcoded_secret"]:
+        score -= 22
+
+    if flags["xss_risk"]:
+        score -= 24
+
+    if flags["command_execution"]:
         score -= 30
 
-    if re.search(r"(secret|secret_key|api_key|token)\s*[:=]\s*[\"'][^\"']{4,}[\"']", lower):
-        score -= 20
+    if flags["unsafe_file_operation"]:
+        score -= 24
 
-    if re.search(r"(db_password|password)\s*[:=]\s*[\"'][^\"']{4,}[\"']", lower):
+    if flags["unsafe_deserialization"]:
+        score -= 30
+
+    if flags["plaintext_password_query"]:
+        score -= 24
+
+    if flags["broad_exception_swallow"]:
+        score -= 10
+
+    if flags["off_by_one_index_loop"]:
         score -= 18
 
-    if re.search(r"(select|delete|update|insert)\s+.*(\+|\$\{).*(req\.|username|password|id|email)", lower, re.DOTALL):
-        score -= 30
-
-    if "select * from" in lower and ("username" in lower or "password" in lower or "users" in lower):
-        score -= 14
-
-    if "password: password" in lower or "password: req.body.password" in lower:
-        score -= 16
-
-    if "res.send(err" in lower or "err.message" in lower:
-        score -= 9
-
-    if "getallusers" in lower or "res.send(users)" in lower:
+    if flags["react_missing_effect_dependencies"]:
         score -= 10
 
-    if "select * from users" in lower and "res.json" in lower:
+    if flags["local_storage_token"]:
+        score -= 8
+
+    if flags["unsafe_error_leak"]:
+        score -= 8
+
+    if flags["weak_crypto"]:
         score -= 10
 
-    if "deleteuser" in lower or "app.delete" in lower:
-        if "auth" not in lower and "authorize" not in lower and "permission" not in lower:
-            score -= 10
-
-    if "==" in code and "===" not in code:
-        score -= 5
-
-    # -----------------------
-    # Quality / maintainability penalties
-    # -----------------------
-
-    if signals["uses_items"] and not signals["has_array_check"]:
-        score -= 8
-
-    if signals["uses_items"] and not signals["has_number_validation"]:
-        score -= 8
-
-    if "customer.name" in lower and not signals["has_customer_validation"]:
-        score -= 4
-
-    if "customer.email" in lower and not signals["has_customer_validation"]:
-        score -= 4
-
-    if "total > 5000" in lower and "total - 500" in lower:
-        score -= 5
-
-    if "invoice +=" in lower:
+    if flags["hardcoded_localhost"]:
         score -= 3
 
-    if "console.log" in lower and "function" in lower:
-        score -= 2
+    if flags["manual_resource_close"]:
+        score -= 3
 
-    if "if (name == \"\")" in lower or "if (email == \"\")" in lower:
-        score -= 5
-
-    if "users.push" in lower and "password" in lower:
-        score -= 10
-
-    # -----------------------
-    # Positive quality bonuses
-    # -----------------------
-
-    if signals["has_cart_validation"]:
-        score += 11
-
-    if signals["has_customer_validation"]:
-        score += 8
-
-    if signals["has_custom_validation_error"]:
-        score += 8
-
-    if signals["has_array_check"]:
-        score += 6
-
-    if signals["has_empty_cart_check"]:
-        score += 4
-
-    if signals["has_number_validation"]:
-        score += 7
-
-    if signals["uses_reduce"]:
-        score += 5
-
-    if signals["uses_map"]:
-        score += 4
-
-    if signals["uses_trim"]:
-        score += 4
-
-    if signals["uses_lowercase"]:
-        score += 3
-
-    if signals["uses_math_max"]:
-        score += 3
-
-    if signals["has_default_discount"]:
-        score += 3
-
-    if signals["has_module_exports"]:
-        score += 2
-
-    if signals["has_created_at"]:
-        score += 4
-
-    if count_small_functions(code) >= 3:
-        score += 4
-
-    # -----------------------
-    # Guardrails for stable ranking
-    # -----------------------
-
-    strong_cart_code = (
-        signals["has_cart_validation"]
-        and signals["has_array_check"]
-        and signals["has_number_validation"]
-        and signals["uses_reduce"]
-        and not signals["has_security_risk"]
-    )
-
-    good_code = (
-        strong_cart_code
-        and signals["uses_math_max"]
-        and signals["has_module_exports"]
-    )
-
-    very_good_code = (
-        strong_cart_code
-        and signals["has_customer_validation"]
-        and signals["has_custom_validation_error"]
-        and signals["uses_map"]
-        and signals["uses_trim"]
-        and signals["uses_lowercase"]
-        and signals["has_created_at"]
-    )
-
-    if strong_cart_code:
-        score = max(score, 88)
-
-    if good_code:
-        score = max(score, 91)
-
-    if very_good_code:
-        score = max(score, 97)
-
-    # Insecure-code guardrail:
-    # Security risks should never get Good score only because the file has functions/module exports.
-    if signals["has_security_risk"]:
-        severe_security = (
-            "eval(" in lower
-            or "exec(" in lower
-            or re.search(r"(select|delete|update|insert)\s+.*(\+|\$\{).*(req\.|username|password|id|email)", lower, re.DOTALL)
-        )
-        score = min(score, 32 if severe_security else 55)
-
-    # Bad in-memory auth/data exposure guardrail.
-    if "const users = []" in lower and "password" in lower and "res.send(users)" in lower:
+    # Severity-based caps keep risky code from getting an inflated score.
+    if security_high_count >= 3:
+        score = min(score, 30)
+    elif security_high_count == 2:
         score = min(score, 45)
+    elif security_high_count == 1:
+        score = min(score, 70)
+
+    if high_count >= 4:
+        score = min(score, 45)
+    elif high_count == 3:
+        score = min(score, 55)
+    elif high_count == 2:
+        score = min(score, 65)
+    elif high_count == 1:
+        score = min(score, 78)
+
+    if medium_count >= 6:
+        score = min(score, 68)
+    elif medium_count >= 4:
+        score = min(score, 74)
+    elif medium_count >= 2:
+        score = min(score, 84)
+
+    severe_static_count = sum(
+        1
+        for key in [
+            "unsafe_eval_exec",
+            "sql_injection",
+            "command_execution",
+            "unsafe_file_operation",
+            "unsafe_deserialization",
+            "plaintext_password_query",
+            "hardcoded_secret",
+            "xss_risk",
+        ]
+        if flags[key]
+    )
+
+    if severe_static_count >= 4:
+        score = min(score, 15)
+    elif severe_static_count == 3:
+        score = min(score, 25)
+    elif severe_static_count == 2:
+        score = min(score, 40)
+    elif severe_static_count == 1:
+        score = min(score, 70)
+
+    if flags["sql_injection"]:
+        score = min(score, 45)
+
+    if flags["unsafe_eval_exec"] or flags["command_execution"] or flags["unsafe_deserialization"]:
+        score = min(score, 50)
+
+    if flags["hardcoded_secret"]:
+        score = min(score, 60)
+
+    if flags["xss_risk"]:
+        score = min(score, 65)
+
+    if flags["unsafe_file_operation"]:
+        score = min(score, 55)
+
+    if flags["plaintext_password_query"]:
+        score = min(score, 55)
+
+    # If no issues are found, avoid blindly returning 100.
+    # Very short snippets rarely prove production-grade quality.
+    if not suggestions:
+        non_empty_lines = [line for line in code.splitlines() if line.strip()]
+        score = min(score, 88 if len(non_empty_lines) < 8 else 92)
 
     return max(0, min(100, round(score)))
 
 
 def normalize_result(result: Dict[str, Any], language: str, code: str) -> Dict[str, Any]:
     suggestions = normalize_suggestions(result.get("suggestions"), language)
+    suggestions = augment_static_suggestions(suggestions, code, language)
 
-    # Final score is deterministic and calculated from submitted code patterns.
-    # AI suggestions are used for explanation only, not for final score.
-    score = calculate_static_score(code)
+    # Final score is calculated from actual detected issues and generic static risks,
+    # not from hardcoded sample-specific code patterns.
+    score = calculate_score(suggestions, code, language, result.get("overallScore"))
 
     summary = clean_text(result.get("summary"), "Code review completed.")
 
-    print(f"Deterministic final score ({SCORING_VERSION}): {score}")
+    print(f"Hybrid final score ({SCORING_VERSION}): {score}")
 
     return {
         "summary": summary,
@@ -559,7 +945,8 @@ def analyze_code(code: str, language: str) -> dict:
                         "You are Meridian.ai, a secure code review assistant. "
                         "Always respond with exactly one valid JSON object and no markdown. "
                         "Every suggestion must include line, severity, category, issue, suggestion, and non-empty refactoredCode. "
-                        "Use conservative severity labels and do not over-penalize clean code."
+                        "Use accurate severity labels based on real exploitability, runtime failure, maintainability impact, and accessibility impact. "
+                        "Do not over-penalize clean code, but do not miss critical risks."
                     ),
                 },
                 {
