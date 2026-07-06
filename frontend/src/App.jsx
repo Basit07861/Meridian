@@ -6,6 +6,9 @@ import Register from './pages/Register';
 import Review from './pages/Review';
 import History from './pages/History';
 import Profile from './pages/Profile';
+import ForgotPassword from './pages/ForgotPassword';
+import ResetPassword from './pages/ResetPassword';
+import SharedReview from './pages/SharedReview';
 import GitHubCallback from './pages/GithubCallback';
 
 function App() {
@@ -16,6 +19,9 @@ function App() {
         <Route path="/" element={<Home />} />
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
+        <Route path="/forgot-password" element={<ForgotPassword />} />
+        <Route path="/reset-password/:token" element={<ResetPassword />} />
+        <Route path="/share/:token" element={<SharedReview />} />
         <Route path="/review" element={<Review />} />
         <Route path="/history" element={<History />} />
         <Route path="/profile" element={<Profile />} />
