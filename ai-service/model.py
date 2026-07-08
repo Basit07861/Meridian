@@ -12,7 +12,7 @@ load_dotenv()
 MODEL_NAME = os.getenv("GROQ_MODEL", "llama-3.3-70b-versatile")
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 MAX_SUGGESTIONS = 12
-SCORING_VERSION = "hybrid-issue-based-v6"
+SCORING_VERSION = "hybrid-issue-based-v7"
 
 SEVERITIES = {"high", "medium", "low"}
 CATEGORIES = {
@@ -391,6 +391,78 @@ def detect_static_risk_flags(code: str) -> Dict[str, bool]:
         "open(" in lower and ".close()" in lower and "with open" not in lower
     )
 
+    has_email_reference = "customer.email" in lower or "email" in lower
+    has_email_format_check = bool(
+        "validateemail" in lower
+        or "regex" in lower
+        or re.search(r"@.*\.", lower)
+        or re.search(r"[^\s@].*@.*\.", lower)
+        or ".includes(\"@\")" in lower
+        or ".includes('@')" in lower
+    )
+
+    missing_email_validation = bool(
+        has_email_reference
+        and not has_email_format_check
+        and (
+            "customer.email" in lower
+            or "customeremail" in lower
+            or "email:" in lower
+            or "email =" in lower
+        )
+    )
+
+    weak_item_validation = bool(
+        re.search(r"if\s*\([^)]*(item|items)\[[^)]*\]\.(price|quantity)[^)]*&&[^)]*(item|items)\[[^)]*\]\.(price|quantity)", lower)
+        or re.search(r"if\s*\([^)]*item\.(price|quantity)\s*&&[^)]*item\.(price|quantity)", lower)
+        or re.search(r"!item\.(price|quantity)", lower)
+    ) and not any(
+        pattern in lower
+        for pattern in ["number.isfinite", "typeof item.price", "typeof product.price", "ispositivenumber"]
+    )
+
+    hardcoded_discount_rule = bool(
+        re.search(r"if\s*\([^)]*(total|subtotal)\s*>\s*\d+", lower)
+        and re.search(r"(total|discount)\s*=\s*(total\s*-\s*\d+|\d+)", lower)
+        and not any(pattern in lower for pattern in ["discount_limit", "discount_amount", "config", "process.env"])
+    )
+
+    direct_object_mutation = bool(
+        re.search(r"\b(order|user|item|product|customer)\.(status|password|role|quantity|price|email|name)\s*=", lower)
+    )
+
+    locale_date_formatting = "tolocalestring()" in lower or "tolocaledatestring()" in lower
+
+    magic_status_string = bool(
+        re.search(r"status\s*[:=]\s*[\"'](pending|cancelled|confirmed|failed|success)[\"']", lower)
+        and "order_status" not in lower
+        and "status_" not in lower
+    )
+
+    clickable_non_button = bool(
+        re.search(r"<\s*(div|p|span)[^>]*onclick\s*=", lower)
+        and "role=" not in lower
+        and "onkeydown" not in lower
+        and "onkeyup" not in lower
+    )
+
+    input_without_label = bool(
+        "<input" in lower
+        and "placeholder=" in lower
+        and "<label" not in lower
+        and "aria-label" not in lower
+        and "aria-labelledby" not in lower
+    )
+
+    nested_quadratic_loop = bool(
+        re.search(r"for\s*\([^)]*\)\s*\{[\s\S]{0,700}?for\s*\([^)]*\)", lower)
+    )
+
+    repeated_string_concat = bool(
+        re.search(r"(report|invoice|output)\s*(\+=|=\s*\w+\s*\+)", lower)
+        and ("for (" in lower or "for(" in lower or ".foreach(" in lower)
+    )
+
     return {
         "sql_injection": sql_injection,
         "hardcoded_secret": hardcoded_secret,
@@ -408,6 +480,16 @@ def detect_static_risk_flags(code: str) -> Dict[str, bool]:
         "unsafe_error_leak": unsafe_error_leak,
         "plaintext_password_query": plaintext_password_query,
         "manual_resource_close": manual_resource_close,
+        "missing_email_validation": missing_email_validation,
+        "weak_item_validation": weak_item_validation,
+        "hardcoded_discount_rule": hardcoded_discount_rule,
+        "direct_object_mutation": direct_object_mutation,
+        "locale_date_formatting": locale_date_formatting,
+        "magic_status_string": magic_status_string,
+        "clickable_non_button": clickable_non_button,
+        "input_without_label": input_without_label,
+        "nested_quadratic_loop": nested_quadratic_loop,
+        "repeated_string_concat": repeated_string_concat,
     }
 
 
@@ -677,6 +759,166 @@ def augment_static_suggestions(
             ["localhost", "environment configuration", "base url"],
         )
 
+    if flags["missing_email_validation"]:
+        append_static_suggestion(
+            suggestions,
+            find_line_number(code, ["email", "customerEmail", "customer.email"]),
+            "medium",
+            "code_quality",
+            "Email value is accepted without format validation.",
+            "Validate email format before storing or using customer contact details.",
+            build_refactored_fallback(
+                "Email value is accepted without format validation.",
+                "Add a validateEmail helper and reject invalid email input before creating the order.",
+                language,
+            ),
+            ["email validation", "email format", "validateemail"],
+        )
+
+    if flags["weak_item_validation"]:
+        append_static_suggestion(
+            suggestions,
+            find_line_number(code, ["item.price", "item.quantity", ".price", ".quantity"]),
+            "medium",
+            "bug",
+            "Item validation relies on truthy checks instead of strict numeric validation.",
+            "Check that price and quantity are finite positive numbers so zero, negative, missing, or string values are handled correctly.",
+            build_refactored_fallback(
+                "Item validation relies on truthy checks instead of strict numeric validation.",
+                "Use typeof/Number.isFinite checks for price and quantity before calculation.",
+                language,
+            ),
+            ["truthy", "numeric validation", "price and quantity", "finite positive"],
+        )
+
+    if flags["hardcoded_discount_rule"]:
+        append_static_suggestion(
+            suggestions,
+            find_line_number(code, ["total >"]),
+            "low",
+            "best_practice",
+            "Discount threshold or amount is hardcoded in business logic.",
+            "Move discount limits and amounts into named constants or configuration.",
+            build_refactored_fallback(
+                "Discount threshold or amount is hardcoded in business logic.",
+                "Use named constants such as DISCOUNT_LIMIT and DISCOUNT_AMOUNT.",
+                language,
+            ),
+            ["hardcoded discount", "discount threshold", "discount amount"],
+        )
+
+    if flags["direct_object_mutation"]:
+        append_static_suggestion(
+            suggestions,
+            find_line_number(code, [".status =", ".password =", ".role =", ".quantity =", ".price ="]),
+            "medium",
+            "code_quality",
+            "Function mutates the input object directly.",
+            "Return a new object instead of modifying the original input to reduce side effects.",
+            build_refactored_fallback(
+                "Function mutates the input object directly.",
+                "Use object spreading or cloning before updating fields.",
+                language,
+            ),
+            ["mutates", "mutation", "side effect", "new object"],
+        )
+
+    if flags["locale_date_formatting"]:
+        append_static_suggestion(
+            suggestions,
+            find_line_number(code, ["toLocaleString", "toLocaleDateString"]),
+            "low",
+            "best_practice",
+            "Locale-dependent date formatting is used in stored data.",
+            "Use ISO timestamps for stored values and format dates only when displaying them.",
+            build_refactored_fallback(
+                "Locale-dependent date formatting is used in stored data.",
+                "Use new Date().toISOString() for consistent stored timestamps.",
+                language,
+            ),
+            ["locale date", "toLocaleString", "toLocaleDateString", "iso"],
+        )
+
+    if flags["magic_status_string"]:
+        append_static_suggestion(
+            suggestions,
+            find_line_number(code, ["status"]),
+            "low",
+            "best_practice",
+            "Order status is represented using repeated magic strings.",
+            "Define shared status constants or an enum to avoid typos and inconsistent states.",
+            build_refactored_fallback(
+                "Order status is represented using repeated magic strings.",
+                "Create an ORDER_STATUS constant and reuse it wherever statuses are assigned.",
+                language,
+            ),
+            ["magic string", "order status", "status constant", "enum"],
+        )
+
+    if flags["clickable_non_button"]:
+        append_static_suggestion(
+            suggestions,
+            find_line_number(code, ["onClick"]),
+            "medium",
+            "accessibility",
+            "Clickable non-button element is not keyboard accessible.",
+            "Use a button element for actions, or add proper role, tabIndex, and keyboard handlers.",
+            build_refactored_fallback(
+                "Clickable non-button element is not keyboard accessible.",
+                "Replace clickable div/span/p elements with semantic buttons.",
+                language,
+            ),
+            ["clickable", "keyboard accessible", "semantic button", "onclick"],
+        )
+
+    if flags["input_without_label"]:
+        append_static_suggestion(
+            suggestions,
+            find_line_number(code, ["<input", "placeholder"]),
+            "medium",
+            "accessibility",
+            "Form input relies on placeholder text instead of an accessible label.",
+            "Add visible labels or aria-label/aria-labelledby so assistive technologies can identify fields.",
+            build_refactored_fallback(
+                "Form input relies on placeholder text instead of an accessible label.",
+                "Add a label element or aria-label for every input.",
+                language,
+            ),
+            ["placeholder", "accessible label", "aria-label", "input label"],
+        )
+
+    if flags["nested_quadratic_loop"]:
+        append_static_suggestion(
+            suggestions,
+            find_line_number(code, ["for (", "for("]),
+            "medium",
+            "performance",
+            "Nested loops can cause avoidable quadratic performance cost.",
+            "Use a single pass, indexed lookup, or built-in sorting/filtering approach where possible.",
+            build_refactored_fallback(
+                "Nested loops can cause avoidable quadratic performance cost.",
+                "Avoid nested iteration over the same collection for search/filter logic.",
+                language,
+            ),
+            ["nested loop", "quadratic", "performance"],
+        )
+
+    if flags["repeated_string_concat"]:
+        append_static_suggestion(
+            suggestions,
+            find_line_number(code, ["report", "invoice", "output"]),
+            "low",
+            "performance",
+            "Repeated string concatenation in loops can be inefficient and harder to maintain.",
+            "Build an array of lines and join them, or use a formatter/template helper.",
+            build_refactored_fallback(
+                "Repeated string concatenation in loops can be inefficient and harder to maintain.",
+                "Collect output lines in an array and join them once.",
+                language,
+            ),
+            ["string concatenation", "join", "report", "invoice"],
+        )
+
     return suggestions[:MAX_SUGGESTIONS]
 
 
@@ -738,7 +980,11 @@ def calculate_score(
 
         else:
             low_count += 1
-            score -= 4
+
+            if category in {"accessibility", "performance"}:
+                score -= 6
+            else:
+                score -= 5
 
         if any(
             keyword in issue_text
@@ -812,6 +1058,36 @@ def calculate_score(
     if flags["manual_resource_close"]:
         score -= 3
 
+    if flags["missing_email_validation"]:
+        score -= 8
+
+    if flags["weak_item_validation"]:
+        score -= 10
+
+    if flags["hardcoded_discount_rule"]:
+        score -= 5
+
+    if flags["direct_object_mutation"]:
+        score -= 6
+
+    if flags["locale_date_formatting"]:
+        score -= 3
+
+    if flags["magic_status_string"]:
+        score -= 4
+
+    if flags["clickable_non_button"]:
+        score -= 12
+
+    if flags["input_without_label"]:
+        score -= 10
+
+    if flags["nested_quadratic_loop"]:
+        score -= 14
+
+    if flags["repeated_string_concat"]:
+        score -= 6
+
     # Severity-based caps keep risky code from getting an inflated score.
     if security_high_count >= 3:
         score = min(score, 30)
@@ -830,11 +1106,15 @@ def calculate_score(
         score = min(score, 78)
 
     if medium_count >= 6:
-        score = min(score, 68)
+       score = min(score, 62)
     elif medium_count >= 4:
-        score = min(score, 74)
+       score = min(score, 68)
+    elif medium_count >= 3:
+       score = min(score, 72)
     elif medium_count >= 2:
-        score = min(score, 84)
+       score = min(score, 76)
+    elif medium_count == 1 and low_count >= 3:
+       score = min(score, 80)
 
     severe_static_count = sum(
         1
@@ -859,6 +1139,47 @@ def calculate_score(
         score = min(score, 40)
     elif severe_static_count == 1:
         score = min(score, 70)
+
+    quality_static_count = sum(
+        1
+        for key in [
+            "missing_email_validation",
+            "weak_item_validation",
+            "hardcoded_discount_rule",
+            "direct_object_mutation",
+            "locale_date_formatting",
+            "magic_status_string",
+            "repeated_string_concat",
+        ]
+        if flags[key]
+    )
+
+    accessibility_static_count = sum(
+        1 for key in ["clickable_non_button", "input_without_label"] if flags[key]
+    )
+
+    performance_static_count = sum(
+        1 for key in ["nested_quadratic_loop", "repeated_string_concat"] if flags[key]
+    )
+
+    if quality_static_count >= 6:
+        score = min(score, 64)
+    elif quality_static_count >= 5:
+        score = min(score, 68)
+    elif quality_static_count >= 4:
+        score = min(score, 72)
+    elif quality_static_count >= 3:
+        score = min(score, 78)
+
+    if accessibility_static_count >= 2:
+        score = min(score, 68)
+    elif accessibility_static_count == 1:
+        score = min(score, 78)
+
+    if performance_static_count >= 2:
+        score = min(score, 70)
+    elif performance_static_count == 1 and flags["nested_quadratic_loop"]:
+        score = min(score, 76)
 
     if flags["sql_injection"]:
         score = min(score, 45)
