@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { login, verifyLoginCode } from '../services/api';
-import meridianLogo from '../assets/meridian-logo.png';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
@@ -103,12 +102,12 @@ export default function Login() {
 
   const S = {
     page: {
-      minHeight: '100vh',
+      minHeight: 'calc(100vh - 68px)',
       background: 'var(--bg-page)',
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'center',
-      padding: '24px',
+      padding: '34px 24px 42px',
       fontFamily: "'Outfit', sans-serif",
       backgroundImage: `
         radial-gradient(ellipse 80% 60% at 20% 0%, var(--brand-tint-07) 0%, transparent 60%),
@@ -116,15 +115,6 @@ export default function Login() {
       `,
     },
     wrap: { width: '100%', maxWidth: 420 },
-    logoWrap: { textAlign: 'center', marginBottom: 32 },
-    logoText: {
-      display: 'block',
-      fontWeight: 800,
-      fontSize: 20,
-      background: 'linear-gradient(135deg, var(--brand-primary), var(--brand-purple-soft))',
-      WebkitBackgroundClip: 'text',
-      WebkitTextFillColor: 'transparent',
-    },
     card: {
       background: 'var(--panel-alpha)',
       backdropFilter: 'blur(20px)',
@@ -254,7 +244,7 @@ export default function Login() {
       gap: 10,
       transition: 'all 0.2s',
     },
-    foot: { textAlign: 'center', marginTop: 24, fontSize: 14, color: 'var(--text-faint)' },
+    foot: { textAlign: 'center', marginTop: 24, fontSize: 17, color: 'var(--text-faint)' },
     link: { color: 'var(--brand-primary)', fontWeight: 700, textDecoration: 'none' },
     miniLink: { color: 'var(--brand-primary)', fontWeight: 700, fontSize: 12, textDecoration: 'none' },
   };
@@ -272,16 +262,6 @@ export default function Login() {
   return (
     <main style={S.page}>
       <div style={S.wrap} className="fade-up">
-        <div style={S.logoWrap}>
-          <Link to="/" style={{ display: 'inline-block', textDecoration: 'none' }}>
-            <img
-              src={meridianLogo}
-              alt="Meridian.ai"
-              style={{ width: 60, height: 60, objectFit: 'contain', margin: '0 auto 12px', display: 'block' }}
-            />
-            <span style={S.logoText}>Meridian.ai</span>
-          </Link>
-        </div>
 
         <div style={S.card}>
           <h1 style={S.heading}>{authStep === 'code' ? 'Verify your email' : 'Welcome back'}</h1>

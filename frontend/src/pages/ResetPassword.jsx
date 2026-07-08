@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { resetPassword } from '../services/api';
-import meridianLogo from '../assets/meridian-logo.png';
 
 export default function ResetPassword() {
   const { token } = useParams();
@@ -14,12 +13,12 @@ export default function ResetPassword() {
 
   const S = {
     page: {
-      minHeight: '100vh',
+      minHeight: 'calc(100vh - 68px)',
       background: 'var(--bg-page)',
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'center',
-      padding: '24px',
+      padding: '34px 24px 42px',
       fontFamily: "'Outfit', sans-serif",
       backgroundImage: `
         radial-gradient(ellipse 80% 60% at 20% 0%, var(--brand-tint-07) 0%, transparent 60%),
@@ -27,15 +26,6 @@ export default function ResetPassword() {
       `,
     },
     wrap: { width: '100%', maxWidth: 430 },
-    logoWrap: { textAlign: 'center', marginBottom: 28 },
-    logoText: {
-      display: 'block',
-      fontWeight: 800,
-      fontSize: 20,
-      background: 'linear-gradient(135deg, var(--brand-primary), var(--brand-purple-soft))',
-      WebkitBackgroundClip: 'text',
-      WebkitTextFillColor: 'transparent',
-    },
     card: {
       background: 'var(--panel-alpha)',
       backdropFilter: 'blur(20px)',
@@ -177,12 +167,6 @@ export default function ResetPassword() {
   return (
     <main style={S.page}>
       <div style={S.wrap} className="fade-up">
-        <div style={S.logoWrap}>
-          <Link to="/" style={{ display: 'inline-block', textDecoration: 'none' }}>
-            <img src={meridianLogo} alt="Meridian.ai" style={{ width: 58, height: 58, objectFit: 'contain', margin: '0 auto 12px', display: 'block' }} />
-            <span style={S.logoText}>Meridian.ai</span>
-          </Link>
-        </div>
 
         <section style={S.card}>
           <div style={S.badge}>🔑 Secure reset</div>

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import meridianLogo from '../assets/meridian-logo.png';
+import useThemeLogo from '../hooks/useThemeLogo';
 
 
 const PRESET_AVATARS = {
@@ -26,6 +26,7 @@ export default function Navbar() {
   const [scrolled, setScrolled] = useState(false);
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
   const [theme, setTheme] = useState(getSavedTheme);
+  const navbarLogo = useThemeLogo('navbar', theme);
 
   // Apply selected theme globally and remember it in browser storage
   useEffect(() => {
@@ -200,55 +201,32 @@ export default function Navbar() {
     }}>
       <div style={{
         maxWidth: 1200, margin: '0 auto', padding: '0 24px',
-        height: 68, display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+        height: 64, display: 'flex', alignItems: 'center', justifyContent: 'space-between',
       }}>
 
         {/* Logo */}
-        <Link to="/" style={{ display: 'flex', alignItems: 'center', gap: 13, textDecoration: 'none' }}>
-          <span style={{
-            width: 46,
-            height: 46,
-            borderRadius: 14,
+        <Link
+          to="/"
+          aria-label="Go to Meridian home"
+          style={{
             display: 'flex',
             alignItems: 'center',
-            justifyContent: 'center',
-            background: 'linear-gradient(135deg, var(--brand-tint-15), var(--purple-tint-10))',
-            border: '1px solid var(--brand-tint-30)',
-            boxShadow: '0 0 26px var(--brand-tint-25), inset 0 1px 0 var(--surface-15)',
-            flexShrink: 0,
-          }}>
-            <img src={meridianLogo} alt="Meridian.ai" style={{
-              width: 36,
-              height: 36,
-              borderRadius: 8,
+            textDecoration: 'none',
+            minWidth: 0,
+          }}
+        >
+          <img
+            src={navbarLogo}
+            alt="Meridian"
+            style={{
+              width: isMobile ? 126 : 148,
+              maxWidth: '42vw',
+              height: 'auto',
               objectFit: 'contain',
-              filter: 'drop-shadow(0 0 12px var(--brand-glow))',
-            }} />
-          </span>
-
-          <div style={{ display: 'flex', alignItems: 'baseline', gap: 2 }}>
-            <span style={{
-              fontWeight: 950,
-              fontSize: 23,
-              letterSpacing: -0.8,
-              color: 'var(--text-heading)',
-              textShadow: '0 0 18px var(--brand-tint-25)',
-              lineHeight: 1,
-            }}>
-              Meridian
-            </span>
-
-            <span style={{
-              fontFamily: "'JetBrains Mono', monospace",
-              fontSize: 18,
-              color: 'var(--brand-primary)',
-              fontWeight: 900,
-              textShadow: '0 0 16px var(--brand-tint-30)',
-              lineHeight: 1,
-            }}>
-              .ai
-            </span>
-          </div>
+              display: 'block',
+              filter: theme === 'dark' ? 'drop-shadow(0 0 8px var(--brand-tint-20))' : 'none',
+            }}
+          />
         </Link>
 
         {/* Desktop */}
