@@ -9,16 +9,44 @@ const isEmailConfigured = () => {
   );
 };
 
+const shouldFailOnEmailError = () => {
+  return String(process.env.SMTP_STRICT || 'false').toLowerCase() === 'true';
+};
+
 const createTransporter = () => {
+  const port = Number(process.env.EMAIL_PORT || 587);
+  const secure = process.env.EMAIL_SECURE
+    ? String(process.env.EMAIL_SECURE).toLowerCase() === 'true'
+    : port === 465;
+
   return nodemailer.createTransport({
     host: process.env.EMAIL_HOST,
-    port: Number(process.env.EMAIL_PORT || 587),
-    secure: String(process.env.EMAIL_SECURE || 'false') === 'true',
+    port,
+    secure,
     auth: {
       user: process.env.EMAIL_USER,
       pass: process.env.EMAIL_PASS,
     },
+    connectionTimeout: 10000,
+    greetingTimeout: 10000,
+    socketTimeout: 10000,
   });
+};
+
+const logLoginCodeFallback = ({ to, code, reason }) => {
+  console.warn('[Email] Login code was not emailed. Using development fallback.');
+  if (reason) {
+    console.warn(`[Email] Reason: ${reason}`);
+  }
+  console.warn(`[Email] Development login code for ${to}: ${code}`);
+};
+
+const logPasswordResetFallback = ({ to, resetLink, reason }) => {
+  console.warn('[Email] Password reset link was not emailed. Using development fallback.');
+  if (reason) {
+    console.warn(`[Email] Reason: ${reason}`);
+  }
+  console.warn(`[Email] Development password reset link for ${to}: ${resetLink}`);
 };
 
 const sendLoginCodeEmail = async ({ to, username, code }) => {
@@ -27,8 +55,7 @@ const sendLoginCodeEmail = async ({ to, username, code }) => {
 
   // Development fallback: keeps local testing possible even before SMTP is configured.
   if (!isEmailConfigured()) {
-    console.warn('[Email] SMTP is not configured. Login code was not emailed.');
-    console.warn(`[Email] Development login code for ${to}: ${code}`);
+    logLoginCodeFallback({ to, code, reason: 'SMTP is not configured.' });
     return { sent: false, devFallback: true };
   }
 
@@ -57,7 +84,13 @@ const sendLoginCodeEmail = async ({ to, username, code }) => {
     return { sent: true, devFallback: false };
   } catch (error) {
     console.error('[Email] Failed to send login code:', error.message);
-    throw new Error('Unable to send authentication code. Please check email configuration.');
+
+    if (shouldFailOnEmailError()) {
+      throw new Error('Unable to send authentication code. Please check email configuration.');
+    }
+
+    logLoginCodeFallback({ to, code, reason: error.message });
+    return { sent: false, devFallback: true };
   }
 };
 
@@ -67,8 +100,7 @@ const sendPasswordResetEmail = async ({ to, username, resetLink, expiresInMinute
 
   // Development fallback: keeps local testing possible even before SMTP is configured.
   if (!isEmailConfigured()) {
-    console.warn('[Email] SMTP is not configured. Password reset link was not emailed.');
-    console.warn(`[Email] Development password reset link for ${to}: ${resetLink}`);
+    logPasswordResetFallback({ to, resetLink, reason: 'SMTP is not configured.' });
     return { sent: false, devFallback: true };
   }
 
@@ -93,7 +125,7 @@ const sendPasswordResetEmail = async ({ to, username, resetLink, expiresInMinute
           <p>This link will expire in <strong>${expiresInMinutes} minutes</strong>.</p>
           <p style="font-size:13px;color:#6b7280;">If the button does not work, copy and paste this link into your browser:</p>
           <p style="font-size:12px;word-break:break-all;color:#4f46e5;">${resetLink}</p>
-          <p style="font-size:13px;color:#6b7280;">If you did not request this, you can safely ignore this email.</p>
+          <p style="font-size:13px;color:#6b7280;">If you did not request this email, you can safely ignore it.</p>
         </div>
       `,
     });
@@ -101,7 +133,13 @@ const sendPasswordResetEmail = async ({ to, username, resetLink, expiresInMinute
     return { sent: true, devFallback: false };
   } catch (error) {
     console.error('[Email] Failed to send password reset email:', error.message);
-    throw new Error('Unable to send password reset email. Please check email configuration.');
+
+    if (shouldFailOnEmailError()) {
+      throw new Error('Unable to send password reset email. Please check email configuration.');
+    }
+
+    logPasswordResetFallback({ to, resetLink, reason: error.message });
+    return { sent: false, devFallback: true };
   }
 };
 
