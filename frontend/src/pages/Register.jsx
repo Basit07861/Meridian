@@ -182,7 +182,7 @@ export default function Register() {
 
   const featureCards = [
     { icon: '🎯', title: 'Precise detection', desc: 'Find bugs and quality issues beyond basic linting.', accent: 'var(--brand-primary)', tint: 'var(--brand-tint-10)' },
-    { icon: '⚡', title: 'Fast analysis', desc: 'Get quick AI feedback for faster reviews.', accent: 'var(--orange)', tint: 'var(--brand-purple-soft)' },
+    { icon: '⚡', title: 'Fast analysis', desc: 'Get quick AI feedback for faster reviews.', accent: 'var(--brand-purple-soft)', tint: 'var(--purple-tint-10)' },
     { icon: '🔐', title: 'Verified signup', desc: 'Confirm your email before the account is created.', accent: 'var(--brand-purple-soft)', tint: 'var(--success-tint-10)' },
     { icon: '🛠️', title: 'Actionable fixes', desc: 'Get cleaner suggestions and refactor ideas.', accent: 'var(--brand-primary)', tint: 'var(--purple-tint-10)' },
   ];
