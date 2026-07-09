@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import useThemeLogo from '../hooks/useThemeLogo';
 
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+
 
 const PRESET_AVATARS = {
   'avatar-1': { icon: '👩‍💻', bg: 'linear-gradient(135deg, #2563eb, #7c3aed)' },
@@ -53,7 +55,7 @@ export default function Navbar() {
 
     const fetchUser = async () => {
       try {
-        const response = await fetch('http://localhost:5000/api/auth/profile', {
+        const response = await fetch(`${API_BASE_URL}/auth/profile`, {
           headers: { Authorization: `Bearer ${token}` },
         });
 
