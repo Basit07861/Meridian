@@ -1,16 +1,71 @@
 const nodemailer = require('nodemailer');
+const axios = require('axios');
+
+const EMAIL_PROVIDER = String(process.env.EMAIL_PROVIDER || '').trim().toLowerCase();
+
+const getSelectedProvider = () => {
+  if (EMAIL_PROVIDER) {
+    return EMAIL_PROVIDER;
+  }
+
+  if (process.env.BREVO_API_KEY) {
+    return 'brevo';
+  }
+
+  if (process.env.RESEND_API_KEY) {
+    return 'resend';
+  }
+
+  return 'smtp';
+};
+
+const shouldFailOnEmailError = () => {
+  return String(process.env.SMTP_STRICT || 'false').toLowerCase() === 'true';
+};
+
+const parseSender = () => {
+  const rawFrom = process.env.EMAIL_FROM || process.env.EMAIL_USER || '';
+  const trimmed = rawFrom.trim();
+
+  const displayMatch = trimmed.match(/^(.+?)\s*<([^<>\s]+@[^<>\s]+)>$/);
+
+  if (displayMatch) {
+    return {
+      raw: trimmed,
+      name: displayMatch[1].replace(/^['"]|['"]$/g, '').trim() || process.env.APP_NAME || 'Meridian.ai',
+      email: displayMatch[2].trim(),
+    };
+  }
+
+  return {
+    raw: trimmed,
+    name: process.env.APP_NAME || 'Meridian.ai',
+    email: trimmed,
+  };
+};
 
 const isEmailConfigured = () => {
+  const provider = getSelectedProvider();
+  const sender = parseSender();
+
+  if (!sender.email) {
+    return false;
+  }
+
+  if (provider === 'brevo') {
+    return Boolean(process.env.BREVO_API_KEY);
+  }
+
+  if (provider === 'resend') {
+    return Boolean(process.env.RESEND_API_KEY);
+  }
+
   return Boolean(
     process.env.EMAIL_HOST &&
     process.env.EMAIL_PORT &&
     process.env.EMAIL_USER &&
     process.env.EMAIL_PASS
   );
-};
-
-const shouldFailOnEmailError = () => {
-  return String(process.env.SMTP_STRICT || 'false').toLowerCase() === 'true';
 };
 
 const createTransporter = () => {
@@ -33,6 +88,93 @@ const createTransporter = () => {
   });
 };
 
+const sendWithBrevo = async ({ to, subject, text, html }) => {
+  const sender = parseSender();
+
+  await axios.post(
+    'https://api.brevo.com/v3/smtp/email',
+    {
+      sender: {
+        name: sender.name,
+        email: sender.email,
+      },
+      to: [{ email: to }],
+      subject,
+      htmlContent: html,
+      textContent: text,
+    },
+    {
+      headers: {
+        accept: 'application/json',
+        'api-key': process.env.BREVO_API_KEY,
+        'content-type': 'application/json',
+      },
+      timeout: 15000,
+    }
+  );
+};
+
+const sendWithResend = async ({ to, subject, text, html }) => {
+  const sender = parseSender();
+
+  await axios.post(
+    'https://api.resend.com/emails',
+    {
+      from: sender.raw || `${sender.name} <${sender.email}>`,
+      to: [to],
+      subject,
+      html,
+      text,
+    },
+    {
+      headers: {
+        authorization: `Bearer ${process.env.RESEND_API_KEY}`,
+        'content-type': 'application/json',
+      },
+      timeout: 15000,
+    }
+  );
+};
+
+const sendWithSmtp = async ({ to, subject, text, html }) => {
+  const sender = parseSender();
+  const transporter = createTransporter();
+
+  await transporter.sendMail({
+    from: sender.raw || sender.email,
+    to,
+    subject,
+    text,
+    html,
+  });
+};
+
+const sendEmail = async ({ to, subject, text, html }) => {
+  const provider = getSelectedProvider();
+
+  if (provider === 'brevo') {
+    return sendWithBrevo({ to, subject, text, html });
+  }
+
+  if (provider === 'resend') {
+    return sendWithResend({ to, subject, text, html });
+  }
+
+  return sendWithSmtp({ to, subject, text, html });
+};
+
+const getProviderLabel = () => {
+  const provider = getSelectedProvider();
+  if (provider === 'brevo') return 'Brevo Email API';
+  if (provider === 'resend') return 'Resend Email API';
+  return 'SMTP';
+};
+
+const getErrorMessage = (error) => {
+  const apiMessage = error?.response?.data?.message || error?.response?.data?.error || error?.response?.data?.name;
+  return apiMessage || error.message || 'Unknown email delivery error';
+};
+
 const logLoginCodeFallback = ({ to, code, reason }) => {
   console.warn('[Email] Login code was not emailed. Using development fallback.');
   if (reason) {
@@ -40,7 +182,6 @@ const logLoginCodeFallback = ({ to, code, reason }) => {
   }
   console.warn(`[Email] Development login code for ${to}: ${code}`);
 };
-
 
 const logRegistrationCodeFallback = ({ to, code, reason }) => {
   console.warn('[Email] Registration code was not emailed. Using development fallback.');
@@ -58,21 +199,16 @@ const logPasswordResetFallback = ({ to, resetLink, reason }) => {
   console.warn(`[Email] Development password reset link for ${to}: ${resetLink}`);
 };
 
-
 const sendRegistrationCodeEmail = async ({ to, username, code }) => {
   const appName = process.env.APP_NAME || 'Meridian.ai';
-  const from = process.env.EMAIL_FROM || process.env.EMAIL_USER;
 
   if (!isEmailConfigured()) {
-    logRegistrationCodeFallback({ to, code, reason: 'SMTP is not configured.' });
+    logRegistrationCodeFallback({ to, code, reason: `${getProviderLabel()} is not configured.` });
     return { sent: false, devFallback: true };
   }
 
   try {
-    const transporter = createTransporter();
-
-    await transporter.sendMail({
-      from,
+    await sendEmail({
       to,
       subject: `${appName} registration verification code`,
       text: `Hello ${username || 'there'},\n\nYour ${appName} registration verification code is ${code}.\n\nThis code will expire in 10 minutes. If you did not try to create an account, you can safely ignore this email.\n\n- ${appName}`,
@@ -90,34 +226,31 @@ const sendRegistrationCodeEmail = async ({ to, username, code }) => {
       `,
     });
 
+    console.log(`[Email] Registration code delivered to ${to} using ${getProviderLabel()}.`);
     return { sent: true, devFallback: false };
   } catch (error) {
-    console.error('[Email] Failed to send registration code:', error.message);
+    const reason = getErrorMessage(error);
+    console.error('[Email] Failed to send registration code:', reason);
 
     if (shouldFailOnEmailError()) {
       throw new Error('Unable to send registration verification code. Please check email configuration.');
     }
 
-    logRegistrationCodeFallback({ to, code, reason: error.message });
+    logRegistrationCodeFallback({ to, code, reason });
     return { sent: false, devFallback: true };
   }
 };
 
 const sendLoginCodeEmail = async ({ to, username, code }) => {
   const appName = process.env.APP_NAME || 'Meridian.ai';
-  const from = process.env.EMAIL_FROM || process.env.EMAIL_USER;
 
-  // Development fallback: keeps local testing possible even before SMTP is configured.
   if (!isEmailConfigured()) {
-    logLoginCodeFallback({ to, code, reason: 'SMTP is not configured.' });
+    logLoginCodeFallback({ to, code, reason: `${getProviderLabel()} is not configured.` });
     return { sent: false, devFallback: true };
   }
 
   try {
-    const transporter = createTransporter();
-
-    await transporter.sendMail({
-      from,
+    await sendEmail({
       to,
       subject: `${appName} login authentication code`,
       text: `Hello ${username || 'there'},\n\nYour ${appName} login authentication code is ${code}.\n\nThis code will expire in 10 minutes. If you did not try to login, you can safely ignore this email.\n\n- ${appName}`,
@@ -135,34 +268,31 @@ const sendLoginCodeEmail = async ({ to, username, code }) => {
       `,
     });
 
+    console.log(`[Email] Login code delivered to ${to} using ${getProviderLabel()}.`);
     return { sent: true, devFallback: false };
   } catch (error) {
-    console.error('[Email] Failed to send login code:', error.message);
+    const reason = getErrorMessage(error);
+    console.error('[Email] Failed to send login code:', reason);
 
     if (shouldFailOnEmailError()) {
       throw new Error('Unable to send authentication code. Please check email configuration.');
     }
 
-    logLoginCodeFallback({ to, code, reason: error.message });
+    logLoginCodeFallback({ to, code, reason });
     return { sent: false, devFallback: true };
   }
 };
 
 const sendPasswordResetEmail = async ({ to, username, resetLink, expiresInMinutes = 15 }) => {
   const appName = process.env.APP_NAME || 'Meridian.ai';
-  const from = process.env.EMAIL_FROM || process.env.EMAIL_USER;
 
-  // Development fallback: keeps local testing possible even before SMTP is configured.
   if (!isEmailConfigured()) {
-    logPasswordResetFallback({ to, resetLink, reason: 'SMTP is not configured.' });
+    logPasswordResetFallback({ to, resetLink, reason: `${getProviderLabel()} is not configured.` });
     return { sent: false, devFallback: true };
   }
 
   try {
-    const transporter = createTransporter();
-
-    await transporter.sendMail({
-      from,
+    await sendEmail({
       to,
       subject: `${appName} password reset request`,
       text: `Hello ${username || 'there'},\n\nUse this link to reset your ${appName} password:\n${resetLink}\n\nThis link will expire in ${expiresInMinutes} minutes. If you did not request this, you can safely ignore this email.\n\n- ${appName}`,
@@ -184,15 +314,17 @@ const sendPasswordResetEmail = async ({ to, username, resetLink, expiresInMinute
       `,
     });
 
+    console.log(`[Email] Password reset email delivered to ${to} using ${getProviderLabel()}.`);
     return { sent: true, devFallback: false };
   } catch (error) {
-    console.error('[Email] Failed to send password reset email:', error.message);
+    const reason = getErrorMessage(error);
+    console.error('[Email] Failed to send password reset email:', reason);
 
     if (shouldFailOnEmailError()) {
       throw new Error('Unable to send password reset email. Please check email configuration.');
     }
 
-    logPasswordResetFallback({ to, resetLink, reason: error.message });
+    logPasswordResetFallback({ to, resetLink, reason });
     return { sent: false, devFallback: true };
   }
 };
