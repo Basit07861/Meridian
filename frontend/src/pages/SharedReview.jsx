@@ -280,7 +280,7 @@ export default function SharedReview() {
 
   return (
     <div style={pageStyle}>
-      <div style={{ maxWidth: 1180, margin: '0 auto', padding: '34px 24px 56px' }}>
+      <div className="responsive-shared-container" style={{ maxWidth: 1180, margin: '0 auto', padding: '34px 24px 56px' }}>
         <div
           style={{
             ...cardStyle,
@@ -354,7 +354,7 @@ export default function SharedReview() {
           </div>
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 18, alignItems: 'start' }}>
+        <div className="responsive-shared-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 320px), 1fr))', gap: 18, alignItems: 'start' }}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
             <div style={{ ...cardStyle, padding: 20 }}>
               <h2 style={{ fontSize: 11, color: 'var(--text-faint)', letterSpacing: 1.5, textTransform: 'uppercase', marginBottom: 12, fontWeight: 900 }}>
@@ -389,7 +389,7 @@ export default function SharedReview() {
               <h2 style={{ fontSize: 11, color: 'var(--text-faint)', letterSpacing: 1.5, textTransform: 'uppercase', marginBottom: 12, fontWeight: 900 }}>
                 Severity Breakdown
               </h2>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 10 }}>
+              <div className="responsive-severity-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 10 }}>
                 {[
                   { count: highCount, label: 'High', color: 'var(--danger)', bg: 'var(--danger-tint-06)', border: 'var(--danger-tint-15)' },
                   { count: mediumCount, label: 'Medium', color: 'var(--warning)', bg: 'var(--warning-tint-06)', border: 'var(--warning-tint-15)' },

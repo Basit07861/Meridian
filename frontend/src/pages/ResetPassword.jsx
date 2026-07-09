@@ -165,10 +165,10 @@ export default function ResetPassword() {
   };
 
   return (
-    <main style={S.page}>
-      <div style={S.wrap} className="fade-up">
+    <main className="responsive-auth-page" style={S.page}>
+      <div style={S.wrap} className="fade-up responsive-auth-wrap">
 
-        <section style={S.card}>
+        <section className="responsive-auth-card" style={S.card}>
           <div style={S.badge}>🔑 Secure reset</div>
           <h1 style={S.heading}>Create new password</h1>
           <p style={S.sub}>Choose a new password for your Meridian email account. This reset link expires automatically.</p>

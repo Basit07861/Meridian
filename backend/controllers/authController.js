@@ -1,13 +1,16 @@
 const User = require('../models/User');
+const PendingRegistration = require('../models/PendingRegistration');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
-const { sendLoginCodeEmail, sendPasswordResetEmail } = require('../utils/emailService');
+const { sendRegistrationCodeEmail, sendLoginCodeEmail, sendPasswordResetEmail } = require('../utils/emailService');
 
 const ALLOWED_AVATARS = User.ALLOWED_AVATARS || ['avatar-1', 'avatar-2', 'avatar-3', 'avatar-4', 'avatar-5', 'avatar-6'];
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const LOGIN_CODE_EXPIRY_MINUTES = 10;
+const REGISTRATION_CODE_EXPIRY_MINUTES = 10;
 const MAX_LOGIN_CODE_ATTEMPTS = 5;
+const MAX_REGISTRATION_CODE_ATTEMPTS = 5;
 const RESET_TOKEN_EXPIRY_MINUTES = 15;
 
 // Generate JWT token
@@ -38,6 +41,8 @@ const maskEmail = (email) => {
 };
 
 const generateLoginCode = () => crypto.randomInt(100000, 1000000).toString();
+
+const generateRegistrationCode = () => crypto.randomInt(100000, 1000000).toString();
 
 const generateResetToken = () => crypto.randomBytes(32).toString('hex');
 
@@ -114,12 +119,16 @@ const handleAuthError = (error, res, fallbackMessage = 'Authentication request f
   return res.status(500).json({ message: fallbackMessage });
 };
 
-const validateRegisterInput = ({ username, email, password }) => {
+const validateRegisterInput = ({ username, email, password, confirmPassword }, requireConfirmPassword = true) => {
   const cleanUsername = cleanString(username);
   const cleanEmail = cleanString(email).toLowerCase();
 
   if (!cleanUsername || !cleanEmail || typeof password !== 'string') {
     return 'Username, email, and password are required.';
+  }
+
+  if (requireConfirmPassword && typeof confirmPassword !== 'string') {
+    return 'Confirm password is required.';
   }
 
   if (cleanUsername.length < 3 || cleanUsername.length > 40) {
@@ -138,13 +147,17 @@ const validateRegisterInput = ({ username, email, password }) => {
     return 'Password must be between 6 and 72 characters.';
   }
 
+  if (requireConfirmPassword && password !== confirmPassword) {
+    return 'Password and confirm password do not match.';
+  }
+
   return null;
 };
 
-// REGISTER
-const register = async (req, res) => {
-  const { username, email, password } = req.body;
-  const validationError = validateRegisterInput({ username, email, password });
+// REGISTRATION STEP 1: validate details and send email verification code
+const sendRegisterCode = async (req, res) => {
+  const { username, email, password, confirmPassword } = req.body;
+  const validationError = validateRegisterInput({ username, email, password, confirmPassword });
 
   if (validationError) {
     return res.status(400).json({ message: validationError });
@@ -164,16 +177,117 @@ const register = async (req, res) => {
       });
     }
 
-    const salt = await bcrypt.genSalt(10);
-    const hashedPassword = await bcrypt.hash(password, salt);
+    const registrationCode = generateRegistrationCode();
+    const [passwordHash, codeHash] = await Promise.all([
+      bcrypt.hash(password, 10),
+      bcrypt.hash(registrationCode, 10),
+    ]);
+
+    await PendingRegistration.deleteMany({
+      $or: [{ email: cleanEmail }, { username: cleanUsername }],
+    });
+
+    await PendingRegistration.create({
+      username: cleanUsername,
+      email: cleanEmail,
+      passwordHash,
+      codeHash,
+      codeExpiresAt: new Date(Date.now() + REGISTRATION_CODE_EXPIRY_MINUTES * 60 * 1000),
+      codeAttempts: 0,
+    });
+
+    const emailResult = await sendRegistrationCodeEmail({
+      to: cleanEmail,
+      username: cleanUsername,
+      code: registrationCode,
+    });
+
+    return res.json({
+      requiresEmailCode: true,
+      message: emailResult.devFallback
+        ? 'Registration code generated. SMTP fallback is active, so check the backend console for the code.'
+        : 'Registration verification code sent to your email.',
+      email: maskEmail(cleanEmail),
+      username: cleanUsername,
+      devFallback: emailResult.devFallback,
+    });
+  } catch (error) {
+    return handleAuthError(error, res, 'Failed to send registration verification code.');
+  }
+};
+
+// REGISTRATION STEP 2: verify code and create account
+const register = async (req, res) => {
+  const { username, email, password, confirmPassword } = req.body;
+  const code = cleanString(req.body.code);
+  const validationError = validateRegisterInput({ username, email, password, confirmPassword });
+
+  if (validationError) {
+    return res.status(400).json({ message: validationError });
+  }
+
+  if (!/^\d{6}$/.test(code)) {
+    return res.status(400).json({ message: 'Registration verification code must be 6 digits.' });
+  }
+
+  const cleanUsername = cleanString(username);
+  const cleanEmail = cleanString(email).toLowerCase();
+
+  try {
+    const userExists = await User.findOne({
+      $or: [{ email: cleanEmail }, { username: cleanUsername }],
+    });
+
+    if (userExists) {
+      await PendingRegistration.deleteMany({
+        $or: [{ email: cleanEmail }, { username: cleanUsername }],
+      });
+
+      return res.status(400).json({
+        message: userExists.email === cleanEmail ? 'Email is already registered.' : 'Username is already taken.',
+      });
+    }
+
+    const pendingRegistration = await PendingRegistration.findOne({
+      email: cleanEmail,
+      username: cleanUsername,
+    });
+
+    if (!pendingRegistration) {
+      return res.status(400).json({ message: 'Registration code is invalid or expired. Please request a new code.' });
+    }
+
+    if (pendingRegistration.codeExpiresAt.getTime() < Date.now()) {
+      await pendingRegistration.deleteOne();
+      return res.status(400).json({ message: 'Registration code has expired. Please request a new code.' });
+    }
+
+    if (pendingRegistration.codeAttempts >= MAX_REGISTRATION_CODE_ATTEMPTS) {
+      await pendingRegistration.deleteOne();
+      return res.status(429).json({ message: 'Too many invalid registration code attempts. Please request a new code.' });
+    }
+
+    const isCodeValid = await bcrypt.compare(code, pendingRegistration.codeHash);
+
+    if (!isCodeValid) {
+      pendingRegistration.codeAttempts += 1;
+      await pendingRegistration.save({ validateBeforeSave: false });
+      return res.status(400).json({
+        message: `Invalid registration code. ${Math.max(MAX_REGISTRATION_CODE_ATTEMPTS - pendingRegistration.codeAttempts, 0)} attempt(s) left.`,
+      });
+    }
 
     const user = await User.create({
       username: cleanUsername,
       displayName: cleanUsername,
       email: cleanEmail,
-      password: hashedPassword,
+      password: pendingRegistration.passwordHash,
       selectedAvatar: 'avatar-1',
       bio: '',
+    });
+
+    await PendingRegistration.deleteMany({
+      $or: [{ email: cleanEmail }, { username: cleanUsername }],
     });
 
     return res.status(201).json(buildUserResponse(user, true));
@@ -456,6 +570,7 @@ const updateProfile = async (req, res) => {
 };
 
 module.exports = {
+  sendRegisterCode,
   register,
   login,
   verifyLoginCode,

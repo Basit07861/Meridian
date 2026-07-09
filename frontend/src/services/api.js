@@ -19,6 +19,10 @@ api.interceptors.request.use((config) => {
 // Auth APIs
 // =====================
 
+export const sendRegisterCode = (data) => {
+  return api.post('/auth/register/send-code', data);
+};
+
 export const register = (data) => {
   return api.post('/auth/register', data);
 };

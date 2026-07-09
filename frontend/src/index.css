@@ -365,3 +365,148 @@ textarea:focus-visible {
   body { font-size: 15px; }
   ::-webkit-scrollbar { width: 3px; height: 3px; }
 }
+
+/* Responsive layout safety layer for Meridian pages */
+img, svg, video, canvas {
+  max-width: 100%;
+}
+
+pre, code, textarea {
+  max-width: 100%;
+}
+
+@media (max-width: 1100px) {
+  .responsive-profile-hero,
+  .responsive-profile-two-col,
+  .responsive-review-grid,
+  .responsive-history-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  .responsive-profile-stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+}
+
+@media (max-width: 900px) {
+  .hide-mobile { display: none !important; }
+
+  .register-responsive-page {
+    min-height: calc(100vh - 64px) !important;
+  }
+
+  .register-form-pane {
+    padding: 24px 16px 34px !important;
+  }
+
+  .register-card-wrap {
+    max-width: 520px !important;
+  }
+
+  .responsive-code-header {
+    align-items: flex-start !important;
+    gap: 10px !important;
+    flex-wrap: wrap !important;
+  }
+
+  .responsive-code-actions {
+    width: 100% !important;
+    flex-wrap: wrap !important;
+  }
+
+  .responsive-code-actions button {
+    flex: 1 1 130px !important;
+  }
+
+  .responsive-tabs {
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch;
+    padding-bottom: 2px;
+  }
+}
+
+@media (max-width: 700px) {
+  .responsive-auth-page {
+    min-height: calc(100vh - 64px) !important;
+    padding: 22px 14px 32px !important;
+    align-items: flex-start !important;
+  }
+
+  .responsive-auth-wrap {
+    max-width: 100% !important;
+  }
+
+  .responsive-auth-card {
+    border-radius: 16px !important;
+    padding: 26px 18px !important;
+  }
+
+  .register-password-row,
+  .responsive-profile-stats,
+  .responsive-profile-two-col,
+  .responsive-severity-grid,
+  .responsive-avatar-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  .responsive-profile-page {
+    padding: 24px 12px 42px !important;
+  }
+
+  .responsive-profile-shell {
+    width: 100% !important;
+  }
+
+  .responsive-recent-review-row {
+    grid-template-columns: 1fr !important;
+  }
+
+  .responsive-recent-review-row > div:last-child {
+    flex-wrap: wrap !important;
+    justify-content: flex-start !important;
+  }
+
+  .responsive-shared-container {
+    padding: 24px 12px 42px !important;
+  }
+
+  .responsive-shared-grid {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+@media (max-width: 520px) {
+  body { font-size: 14px; }
+
+  h1, h2, h3 {
+    overflow-wrap: anywhere;
+  }
+
+  button, input, textarea, select {
+    font-size: 14px !important;
+  }
+
+  .register-form-pane {
+    padding: 20px 12px 30px !important;
+  }
+
+  .register-card-wrap h1,
+  .responsive-auth-card h1 {
+    font-size: 24px !important;
+  }
+
+  .responsive-review-grid textarea {
+    height: 280px !important;
+    font-size: 12px !important;
+    line-height: 1.65 !important;
+  }
+
+  .responsive-history-grid,
+  .responsive-review-grid {
+    gap: 14px !important;
+  }
+
+  .score-quality-badge {
+    font-size: 10px !important;
+  }
+}

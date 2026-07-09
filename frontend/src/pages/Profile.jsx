@@ -330,9 +330,9 @@ export default function Profile() {
   }
 
   return (
-    <main style={pageStyle}>
-      <div style={shellStyle}>
-        <section style={{
+    <main className="responsive-profile-page" style={pageStyle}>
+      <div className="responsive-profile-shell" style={shellStyle}>
+        <section className="responsive-profile-hero" style={{
           display: 'grid',
           gridTemplateColumns: 'minmax(280px, 360px) 1fr',
           gap: 22,
@@ -441,7 +441,7 @@ export default function Profile() {
                 </Link>
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(130px, 1fr))', gap: 14, marginTop: 28 }}>
+              <div className="responsive-profile-stats" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(130px, 1fr))', gap: 14, marginTop: 28 }}>
                 <div style={statCardStyle}>
                   <div style={labelStyle}>Total Reviews</div>
                   <div style={{ marginTop: 13, fontSize: 36, fontWeight: 950, color: 'var(--text-heading)', lineHeight: 1 }}>{stats.totalReviews}</div>
@@ -477,7 +477,7 @@ export default function Profile() {
           </div>
         </section>
 
-        <section style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 22, marginTop: 22 }}>
+        <section className="responsive-profile-two-col" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 22, marginTop: 22 }}>
           <div style={{ ...cardStyle, padding: 24 }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 14, marginBottom: 18 }}>
               <div>
@@ -522,7 +522,7 @@ export default function Profile() {
               </span>
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12 }}>
+            <div className="responsive-severity-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12 }}>
               {[
                 { label: 'High', value: stats.severityCounts.high, icon: '🚨', color: 'var(--danger)', bg: 'var(--danger-tint-10)', border: 'var(--danger-tint-30)' },
                 { label: 'Medium', value: stats.severityCounts.medium, icon: '⚠️', color: 'var(--warning)', bg: 'var(--warning-tint-10)', border: 'var(--warning-tint-25)' },
@@ -545,7 +545,7 @@ export default function Profile() {
           </div>
         </section>
 
-        <section style={{ display: 'grid', gridTemplateColumns: '1.05fr 0.95fr', gap: 22, marginTop: 22 }}>
+        <section className="responsive-profile-two-col" style={{ display: 'grid', gridTemplateColumns: '1.05fr 0.95fr', gap: 22, marginTop: 22 }}>
           <div style={{ ...cardStyle, padding: 24 }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 14, marginBottom: 18 }}>
               <div>
@@ -573,7 +573,7 @@ export default function Profile() {
                   const scoreStyle = getScoreLabel(score);
 
                   return (
-                    <div key={review._id} style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 14, alignItems: 'center', padding: 15, borderRadius: 18, background: 'var(--surface-04)', border: '1px solid var(--border)' }}>
+                    <div className="responsive-recent-review-row" key={review._id} style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 14, alignItems: 'center', padding: 15, borderRadius: 18, background: 'var(--surface-04)', border: '1px solid var(--border)' }}>
                       <div style={{ minWidth: 0 }}>
                         <div style={{ color: 'var(--text-heading)', fontWeight: 950, fontSize: 16, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                           {review.title || 'Untitled Review'}
@@ -733,7 +733,7 @@ export default function Profile() {
                     </div>
                   </div>
                 ) : (
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 10 }}>
+                  <div className="responsive-avatar-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 10 }}>
                     {PRESET_AVATARS.map((avatar) => {
                       const selected = editForm.selectedAvatar === avatar.id;
                       return (

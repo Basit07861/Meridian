@@ -527,21 +527,21 @@ export default function Review() {
 
   const currentLineCount = code ? code.split('\n').length : 0;
 
-  const handleCodeChange = (val) => {
+  const handleCodeChange = (val, fileName = title) => {
     const lines = val.split('\n');
 
     if (lines.length > MAX_CODE_LINES) {
       const limitedCode = lines.slice(0, MAX_CODE_LINES).join('\n');
 
       setCode(limitedCode);
-      setLanguage(detectLanguage(limitedCode));
+      setLanguage(detectLanguage(limitedCode, fileName));
       setLineLimitError(`Only ${MAX_CODE_LINES} lines are allowed.`);
 
       return;
     }
 
     setCode(val);
-    setLanguage(detectLanguage(val));
+    setLanguage(detectLanguage(val, fileName));
     setLineLimitError('');
   };
 
@@ -553,11 +553,11 @@ export default function Review() {
     const reader = new FileReader();
 
     reader.onload = (ev) => {
-      handleCodeChange(ev.target.result);
+      handleCodeChange(ev.target.result, file.name);
     };
 
-    reader.readAsText(file);
     setTitle(file.name);
+    reader.readAsText(file);
   };
 
   const loadRepos = async () => {
@@ -952,6 +952,7 @@ export default function Review() {
         </div>
 
         <div
+          className="responsive-review-grid"
           style={{
             ...S.grid,
             gridTemplateColumns:
@@ -966,7 +967,10 @@ export default function Review() {
               type="text"
               placeholder="Review title (optional)..."
               value={title}
-              onChange={(e) => setTitle(e.target.value)}
+              onChange={(e) => {
+                setTitle(e.target.value);
+                if (code) setLanguage(detectLanguage(code, e.target.value));
+              }}
               style={S.inputStyle}
               onFocus={(e) => {
                 e.target.style.borderColor = 'var(--brand-tint-40)';
@@ -1089,7 +1093,7 @@ export default function Review() {
             )}
 
             <div style={S.codeWrap}>
-              <div style={S.codeHeader}>
+              <div className="responsive-code-header" style={S.codeHeader}>
                 <div style={S.codeLabel}>
                   Your Code
                   {language && language !== 'unknown' && (
@@ -1106,7 +1110,7 @@ export default function Review() {
                   )}
                 </div>
 
-                <div style={S.codeActions}>
+                <div className="responsive-code-actions" style={S.codeActions}>
                   <input
                     type="file"
                     ref={fileRef}
@@ -1277,7 +1281,7 @@ export default function Review() {
 
             {review && !loading && (
               <>
-                <div style={S.tabs}>
+                <div className="responsive-tabs" style={S.tabs}>
                   <button
                     style={activeTab === 'review' ? S.tabActive : S.tabInactive}
                     onClick={() => setActiveTab('review')}

@@ -260,8 +260,8 @@ export default function Login() {
   };
 
   return (
-    <main style={S.page}>
-      <div style={S.wrap} className="fade-up">
+    <main className="responsive-auth-page" style={S.page}>
+      <div style={S.wrap} className="fade-up responsive-auth-wrap">
 
         <div style={S.card}>
           <h1 style={S.heading}>{authStep === 'code' ? 'Verify your email' : 'Welcome back'}</h1>

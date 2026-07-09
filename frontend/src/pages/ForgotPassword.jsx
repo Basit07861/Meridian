@@ -136,10 +136,10 @@ export default function ForgotPassword() {
   };
 
   return (
-    <main style={S.page}>
-      <div style={S.wrap} className="fade-up">
+    <main className="responsive-auth-page" style={S.page}>
+      <div style={S.wrap} className="fade-up responsive-auth-wrap">
 
-        <section style={S.card}>
+        <section className="responsive-auth-card" style={S.card}>
           <div style={S.badge}>🔐 Account recovery</div>
           <h1 style={S.heading}>Forgot password?</h1>
           <p style={S.sub}>

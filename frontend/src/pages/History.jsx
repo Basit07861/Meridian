@@ -172,7 +172,10 @@ export default function History() {
     searchWrap: { position: 'relative', flex: 1, minWidth: 200 },
     searchInput: {
       width: '100%', padding: '9px 14px 9px 36px', borderRadius: 10, fontSize: 13,
-      background: 'var(--bg-panel)', border: '1px solid var(--border)',
+      background: 'var(--bg-panel)',
+      borderWidth: 1,
+      borderStyle: 'solid',
+      borderColor: 'var(--border)',
       color: 'var(--text-primary)', outline: 'none', boxSizing: 'border-box',
     },
     searchIcon: { position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', fontSize: 13, color: 'var(--text-faint)' },
@@ -180,13 +183,19 @@ export default function History() {
     grid: { display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1fr)', gap: 20, alignItems: 'start' },
     listWrap: { display: 'flex', flexDirection: 'column', gap: 10 },
     reviewCard: {
-      background: 'linear-gradient(145deg, var(--bg-panel), var(--surface-03))', border: '1px solid var(--border)',
+      background: 'linear-gradient(145deg, var(--bg-panel), var(--surface-03))',
+      borderWidth: 1,
+      borderStyle: 'solid',
+      borderColor: 'var(--border)',
       borderRadius: 14, padding: 17, cursor: 'pointer',
       boxShadow: '0 14px 38px var(--surface-05)',
       transition: 'all 0.2s',
     },
     reviewCardActive: {
-      background: 'linear-gradient(145deg, var(--brand-tint-08), var(--purple-tint-04))', border: '1px solid var(--brand-tint-30)',
+      background: 'linear-gradient(145deg, var(--brand-tint-08), var(--purple-tint-04))',
+      borderWidth: 1,
+      borderStyle: 'solid',
+      borderColor: 'var(--brand-tint-30)',
       borderRadius: 14, padding: 17, cursor: 'pointer',
       boxShadow: 'var(--shadow)',
     },
@@ -267,7 +276,9 @@ export default function History() {
                     cursor: 'pointer',
                     transition: 'all 0.2s',
                     background: isActive ? activeBg : 'var(--surface-03)',
-                    border: `1px solid ${border}`,
+                    borderWidth: 1,
+                    borderStyle: 'solid',
+                    borderColor: border,
                     color: isActive ? activeColor : 'var(--text-secondary)',
                     boxShadow: isActive ? `0 8px 22px ${glow}` : 'none',
                   }}
@@ -289,7 +300,7 @@ export default function History() {
 
         {loading ? (
           <div style={{ textAlign: 'center', padding: 80 }}>
-            <div style={{ width: 36, height: 36, borderRadius: '50%', border: '2px solid var(--brand-tint-20)', borderTopColor: 'var(--brand-hover)', animation: 'spin 0.8s linear infinite', margin: '0 auto 12px' }} />
+            <div style={{ width: 36, height: 36, borderRadius: '50%', borderWidth: 2, borderStyle: 'solid', borderColor: 'var(--brand-tint-20)', borderTopColor: 'var(--brand-hover)', animation: 'spin 0.8s linear infinite', margin: '0 auto 12px' }} />
             <p style={{ color: 'var(--text-faint)', fontSize: 14 }}>Loading reviews...</p>
           </div>
         ) : filtered.length === 0 ? (
@@ -300,7 +311,7 @@ export default function History() {
             {!search && <button onClick={() => navigate('/review')} style={{ padding: '9px 22px', borderRadius: 9, background: 'linear-gradient(135deg,var(--brand-hover),var(--brand-purple-strong))', color: 'white', border: 'none', cursor: 'pointer', fontSize: 14, fontWeight: 700 }}>Review Code →</button>}
           </div>
         ) : (
-          <div style={{ ...S.grid, gridTemplateColumns: window.innerWidth < 900 ? '1fr' : 'minmax(0, 1fr) minmax(0, 1fr)' }} className="fade-up-2">
+          <div style={{ ...S.grid, gridTemplateColumns: window.innerWidth < 900 ? '1fr' : 'minmax(0, 1fr) minmax(0, 1fr)' }} className="fade-up-2 responsive-history-grid">
             {/* List */}
             <div style={S.listWrap}>
               {filtered.map(r => (

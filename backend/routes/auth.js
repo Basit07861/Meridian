@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const {
+  sendRegisterCode,
   register,
   login,
   verifyLoginCode,
@@ -11,6 +12,7 @@ const {
 } = require('../controllers/authController');
 const { protect } = require('../middleware/auth');
 
+router.post('/register/send-code', sendRegisterCode);
 router.post('/register', register);
 router.post('/login', login);
 router.post('/verify-login-code', verifyLoginCode);
