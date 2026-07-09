@@ -182,9 +182,9 @@ export default function Register() {
 
   const featureCards = [
     { icon: '🎯', title: 'Precise detection', desc: 'Find bugs and quality issues beyond basic linting.', accent: 'var(--brand-primary)', tint: 'var(--brand-tint-10)' },
-    { icon: '⚡', title: 'Fast analysis', desc: 'Get quick AI feedback for faster reviews.', accent: 'var(--orange)', tint: 'var(--orange-tint-10)' },
-    { icon: '🔐', title: 'Verified signup', desc: 'Confirm your email before the account is created.', accent: 'var(--success)', tint: 'var(--success-tint-10)' },
-    { icon: '🛠️', title: 'Actionable fixes', desc: 'Get cleaner suggestions and refactor ideas.', accent: 'var(--brand-purple-soft)', tint: 'var(--purple-tint-10)' },
+    { icon: '⚡', title: 'Fast analysis', desc: 'Get quick AI feedback for faster reviews.', accent: 'var(--orange)', tint: 'var(--brand-purple-soft)' },
+    { icon: '🔐', title: 'Verified signup', desc: 'Confirm your email before the account is created.', accent: 'var(--brand-purple-soft)', tint: 'var(--success-tint-10)' },
+    { icon: '🛠️', title: 'Actionable fixes', desc: 'Get cleaner suggestions and refactor ideas.', accent: 'var(--brand-primary)', tint: 'var(--purple-tint-10)' },
   ];
 
   return (
@@ -214,26 +214,6 @@ export default function Register() {
       >
         <div className="fade-up register-card-wrap" style={{ width: '100%', maxWidth: 430 }}>
           <div style={{ marginBottom: 18 }}>
-            <div
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: 8,
-                padding: '7px 12px',
-                borderRadius: 999,
-                background: 'var(--brand-tint-08)',
-                border: '1px solid var(--brand-tint-20)',
-                color: 'var(--brand-primary)',
-                fontSize: 12,
-                fontWeight: 800,
-                fontFamily: "'JetBrains Mono', monospace",
-                letterSpacing: 0.3,
-                marginBottom: 12,
-              }}
-            >
-              <span>{step === 'details' ? '✦' : '✉️'}</span>
-              {step === 'details' ? 'Secure AI review signup' : 'Email verification required'}
-            </div>
 
             <h1 style={{ fontSize: 28, fontWeight: 850, color: 'var(--text-heading)', letterSpacing: -1, margin: '0 0 6px' }}>
               {step === 'details' ? 'Create account' : 'Verify your email'}
