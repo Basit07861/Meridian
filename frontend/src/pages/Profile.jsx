@@ -34,6 +34,15 @@ const getDisplayName = (user) => {
   return user?.displayName || user?.username || user?.githubUsername || 'User';
 };
 
+const getUsername = (user) => {
+  return user?.username || user?.githubUsername || '';
+};
+
+const formatUsername = (user) => {
+  const username = getUsername(user);
+  return username ? `@${username}` : 'Not available';
+};
+
 const getSelectedAvatar = (selectedAvatar) => {
   return PRESET_AVATARS.find((avatar) => avatar.id === selectedAvatar) || PRESET_AVATARS[0];
 };
@@ -349,9 +358,17 @@ export default function Profile() {
                 <h1 style={{ margin: 0, fontSize: 23, color: 'var(--text-heading)', letterSpacing: -1, lineHeight: 1.05, wordBreak: 'break-word' }}>
                   {getDisplayName(profile)}
                 </h1>
-                <p style={{ margin: '8px 0 0', color: 'var(--text-muted)', fontSize: 14, wordBreak: 'break-word' }}>
-                  {profile?.email || 'Email not available'}
-                </p>
+                <div style={{ display: 'grid', gap: 5, marginTop: 9 }}>
+                  <p style={{ margin: 0, color: 'var(--text-muted)', fontSize: 14, wordBreak: 'break-word' }}>
+                    Username:{' '}
+                    <strong style={{ color: 'var(--brand-primary)', fontWeight: 950 }}>
+                      {formatUsername(profile)}
+                    </strong>
+                  </p>
+                  <p style={{ margin: 0, color: 'var(--text-muted)', fontSize: 14, wordBreak: 'break-word' }}>
+                    {profile?.email || 'Email not available'}
+                  </p>
+                </div>
               </div>
             </div>
 
@@ -383,6 +400,13 @@ export default function Profile() {
             </button>
 
             <div style={{ position: 'relative', marginTop: 16, display: 'grid', gap: 10 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 14, padding: '12px 14px', borderRadius: 16, background: 'var(--surface-04)', border: '1px solid var(--border)', flexWrap: 'wrap' }}>
+                <span style={{ color: 'var(--text-muted)', fontWeight: 700 }}>Username</span>
+                <span style={{ color: 'var(--brand-primary)', fontWeight: 950, wordBreak: 'break-word', textAlign: 'right' }}>
+                  {formatUsername(profile)}
+                </span>
+              </div>
+
               <div style={{ display: 'flex', justifyContent: 'space-between', gap: 14, padding: '12px 14px', borderRadius: 16, background: 'var(--surface-04)', border: '1px solid var(--border)' }}>
                 <span style={{ color: 'var(--text-muted)', fontWeight: 700 }}>Account Type</span>
                 <span style={{ color: 'var(--text-heading)', fontWeight: 900 }}>
@@ -693,6 +717,19 @@ export default function Profile() {
             </div>
 
             <div style={{ display: 'grid', gap: 16 }}>
+              <label style={{ display: 'grid', gap: 8 }}>
+                <span style={{ color: 'var(--text-secondary)', fontWeight: 900 }}>Username</span>
+                <input
+                  value={formatUsername(profile)}
+                  readOnly
+                  aria-readonly="true"
+                  style={{ ...inputStyle, color: 'var(--text-muted)', cursor: 'not-allowed', opacity: 0.85 }}
+                />
+                <span style={{ color: 'var(--text-muted)', fontSize: 12 }}>
+                  Username is your fixed login identity. Updating display name will not change this username.
+                </span>
+              </label>
+
               <label style={{ display: 'grid', gap: 8 }}>
                 <span style={{ color: 'var(--text-secondary)', fontWeight: 900 }}>Display name</span>
                 <input
