@@ -21,9 +21,11 @@
 ## Table of Contents
 
 - [Project Overview](#project-overview)
+- [Live Deployment](#live-deployment)
 - [Problem Statement](#problem-statement)
 - [Proposed Solution](#proposed-solution)
 - [Key Features](#key-features)
+- [Latest Updates](#latest-updates)
 - [System Architecture](#system-architecture)
 - [Tech Stack](#tech-stack)
 - [Project Structure](#project-structure)
@@ -37,33 +39,51 @@
 - [Security and Validation](#security-and-validation)
 - [Deployment Notes](#deployment-notes)
 - [Future Scope](#future-scope)
+- [Conclusion](#conclusion)
 
 ---
 
 ## Project Overview
 
-**Meridian.ai** is an AI-powered code review platform that helps developers identify bugs, security issues, accessibility concerns, performance problems, and code-quality improvements. Users can paste code, upload code, or load files from GitHub repositories. The system analyzes the code using an AI service and returns severity-based suggestions, an overall quality score, a summary, and possible refactored code snippets.
+**Meridian.ai** is an AI-powered code review and bug suggestion platform that helps developers identify bugs, security issues, accessibility concerns, performance problems, and code-quality improvements.
 
-The platform also includes authentication, GitHub OAuth, review history, profile dashboard, password reset, and public review sharing.
+Users can submit code by pasting it directly, uploading a code file, or loading code from a GitHub repository. Meridian.ai analyzes the code through an AI microservice and returns a structured review containing an overall quality score, summary, severity-based issues, practical suggestions, and possible refactored code snippets.
+
+The platform also includes authentication, GitHub OAuth, email verification, two-step login verification, password reset, review history, public shared reviews, profile dashboard, theme support, and deployment-ready configuration.
+
+---
+
+## Live Deployment
+
+| Service | URL |
+|---|---|
+| Frontend | `https://meridian-ai-review.netlify.app` |
+| Backend | `https://meridian-backend-7jah.onrender.com` |
+| Backend API | `https://meridian-backend-7jah.onrender.com/api` |
+| AI Service | `https://meridian-ai-service.onrender.com` |
 
 ---
 
 ## Problem Statement
 
-Manual code reviews can be time-consuming and inconsistent. Reviewers may miss subtle bugs, insecure patterns, accessibility problems, or maintainability issues, especially when reviewing large or unfamiliar codebases.
+Manual code reviews are often slow, inconsistent, and difficult to scale. Reviewers may miss subtle bugs, insecure coding patterns, accessibility issues, or maintainability problems, especially when working with large or unfamiliar codebases.
 
-Developers need a tool that can provide fast, structured, and reliable feedback before the code reaches production or formal review.
+Traditional linting tools can detect syntax and formatting issues, but they cannot always explain logical mistakes, security risks, or improvement opportunities in a beginner-friendly and structured way.
+
+Developers need a tool that can provide fast, understandable, and actionable feedback before code reaches production or formal review.
 
 ---
 
 ## Proposed Solution
 
-Meridian.ai provides a web-based platform where users can submit code and receive AI-generated review feedback. The system combines:
+Meridian.ai provides a web-based platform where users can submit source code and receive AI-generated review feedback.
 
-- A modern React frontend for code submission and review visualization.
-- A Node.js/Express backend for authentication, review storage, GitHub integration, sharing, and secure API handling.
-- A FastAPI AI service using Groq LLM integration with deterministic static scoring and rule-based context.
-- MongoDB for storing users, reviews, profile data, review history, and shareable review metadata.
+The system combines:
+
+- A modern **React + Vite frontend** for code submission, review visualization, profile management, and shared review viewing.
+- A **Node.js + Express backend** for authentication, review storage, GitHub integration, email workflows, sharing, and secure API handling.
+- A **FastAPI AI service** using Groq LLM integration with rule-based context and hybrid issue-based scoring.
+- **MongoDB Atlas** for storing users, reviews, pending registrations, profile details, reset tokens, verification data, and public share metadata.
 
 ---
 
@@ -71,15 +91,30 @@ Meridian.ai provides a web-based platform where users can submit code and receiv
 
 ### Authentication and User Management
 
-- User registration.
-- Login using either email or username.
+- Email/password registration.
+- Email verification before account creation.
+- Confirm password validation during signup.
+- Login using either username or email.
 - Two-step login verification code flow.
 - Forgot password and reset password functionality.
 - GitHub OAuth login.
 - JWT-based protected routes.
 - Logout flow.
 - Profile editing with display name, bio, and avatar options.
-- GitHub users retain their GitHub avatar and cannot reset password through Meridian.ai.
+- Username and display name shown separately on the profile page.
+- GitHub users retain their GitHub avatar.
+- GitHub users are identified as GitHub OAuth accounts.
+- Password reset is available for email/password accounts.
+
+### Email Delivery
+
+- Registration verification code emails.
+- Login verification code emails.
+- Password reset emails.
+- API-based email delivery using Brevo for deployed backend.
+- Optional Resend provider support.
+- SMTP fallback support for local testing or non-free hosting environments.
+- Environment-based email provider selection.
 
 ### Code Review
 
@@ -87,14 +122,23 @@ Meridian.ai provides a web-based platform where users can submit code and receiv
 - Upload code files.
 - Load code from GitHub repositories.
 - Automatic language detection.
-- 500-line limit validation on frontend, backend, and AI service.
+- Improved language detection for JavaScript, TypeScript, Java, Python, C, C++, Go, Rust, PHP, JSX, and TSX.
+- 500-line validation support.
 - AI-generated review summary.
 - Severity-based suggestions: High, Medium, Low.
-- Category support: Security, Accessibility, Performance, Code Quality, UI/UX, Best Practice, Bug.
+- Category support:
+  - Security
+  - Accessibility
+  - Performance
+  - Code Quality
+  - UI/UX
+  - Best Practice
+  - Bug
 - Overall score from 0 to 100.
 - Good, Fair, and Poor quality indicators.
 - Suggested refactored code snippets.
 - Diff-style comparison for suggestions.
+- Stable and balanced scoring using hybrid issue-based scoring.
 
 ### Review History
 
@@ -104,6 +148,8 @@ Meridian.ai provides a web-based platform where users can submit code and receiv
 - Good/Fair/Poor review classification.
 - Delete review functionality.
 - Share review functionality.
+- Improved responsive history page layout.
+- Fixed React border styling warning in history filters.
 
 ### Public Shared Review Page
 
@@ -112,12 +158,18 @@ Meridian.ai provides a web-based platform where users can submit code and receiv
 - Public shared reviews are read-only.
 - Only reviews marked as public can be accessed.
 - Private user data is not exposed in the public response.
+- Share links work with the deployed frontend domain.
 
 ### Profile Dashboard
 
 - User profile details.
+- Editable display name.
+- Read-only username shown separately.
+- Email display.
+- Bio/about section.
 - Account type display.
 - GitHub connection status.
+- Avatar status.
 - Review statistics.
 - Average score.
 - Best score.
@@ -125,18 +177,60 @@ Meridian.ai provides a web-based platform where users can submit code and receiv
 - Good/Fair/Poor review counts.
 - High/Medium/Low issue counts.
 - Recent review activity.
+- Profile API uses deployed backend URL through environment configuration.
+
+### UI and Theme
+
+- Dark and light mode support.
+- Theme-aware Meridian logo.
+- Responsive layout improvements.
+- Improved navbar styling.
+- Improved auth page spacing.
+- Register page starts directly with the account creation heading after removing the extra signup badge line.
+- Register page includes clean verification flow.
+- Netlify SPA redirect support for direct route access.
 
 ### AI Service
 
 - Groq LLM integration.
+- LLaMA 3.3 70B model support.
 - OWASP-inspired security review rules.
 - GIGW/accessibility review rules.
 - Code-quality and best-practice rules.
 - Strict structured JSON response format.
 - AI response cleaning and validation.
-- Deterministic static scoring version: `deterministic-static-v5`.
+- Hybrid issue-based scoring version: `hybrid-issue-based-v7`.
 - Stable scoring for repeated review submissions.
+- Better handling of good, medium, and bad code samples.
 - Graceful handling for missing API key, quota limits, invalid AI response, and service errors.
+
+---
+
+## Latest Updates
+
+The latest project version includes the following improvements:
+
+- Added verified registration flow with email verification code.
+- Added confirm password field on Register page.
+- Added pending registration handling with expiry and attempt limit.
+- Added API-based email delivery support using Brevo.
+- Added optional Resend email provider support.
+- Preserved SMTP support for local testing.
+- Improved forgot password and reset password email flow for deployment.
+- Improved GitHub OAuth deployed callback handling.
+- Fixed deployed frontend API calls that were still pointing to localhost.
+- Added Netlify `_redirects` file for SPA route refresh support.
+- Improved public shared review route.
+- Improved profile dashboard.
+- Added separate display name and username display.
+- Added theme-aware logo handling.
+- Improved frontend responsiveness across major pages.
+- Removed extra signup badge text from Register page.
+- Improved language detection.
+- Balanced AI scoring with hybrid issue-based scoring v7.
+- Added stronger review categories and issue classification.
+- Fixed React border style warning in Register/History UI.
+- Updated deployment environment variable support for Netlify and Render.
 
 ---
 
@@ -144,10 +238,11 @@ Meridian.ai provides a web-based platform where users can submit code and receiv
 
 ```mermaid
 flowchart LR
-    User[User] --> Frontend[React + Vite Frontend]
+    User[User / Browser] --> Frontend[React + Vite Frontend]
     Frontend --> Backend[Node.js + Express Backend]
-    Backend --> MongoDB[(MongoDB Database)]
+    Backend --> MongoDB[(MongoDB Atlas)]
     Backend --> GitHub[GitHub OAuth + GitHub API]
+    Backend --> Email[Brevo / Resend Email API]
     Backend --> AIService[FastAPI AI Service]
     AIService --> Groq[Groq LLM]
     AIService --> Rules[OWASP / GIGW / Code Quality Rules]
@@ -167,11 +262,32 @@ sequenceDiagram
     F->>B: POST /api/review/analyze
     B->>B: Validate JWT and code input
     B->>A: Send code for AI review
-    A->>A: Apply rules + deterministic scoring
+    A->>A: Apply rule context + hybrid scoring
     A->>B: Return structured review result
     B->>DB: Save review history
     B->>F: Return review response
     F->>U: Display score, summary, suggestions, and diff view
+```
+
+### Registration Verification Flow
+
+```mermaid
+sequenceDiagram
+    participant U as User
+    participant F as Frontend
+    participant B as Backend
+    participant DB as MongoDB
+    participant E as Email API
+
+    U->>F: Enter username, email, password
+    F->>B: Request registration code
+    B->>DB: Store pending registration
+    B->>E: Send verification code
+    E->>U: Email verification code
+    U->>F: Enter 6-digit code
+    F->>B: Create verified account
+    B->>DB: Create user and remove pending record
+    B->>F: Return JWT and user data
 ```
 
 ### Public Sharing Flow
@@ -199,7 +315,8 @@ flowchart TD
 | React Router DOM | Page routing |
 | Axios | API communication |
 | React Syntax Highlighter | Code display and highlighting |
-| CSS | Custom styling and responsive UI |
+| CSS | Custom styling, theme handling, and responsive UI |
+| Netlify | Frontend deployment |
 
 ### Backend
 
@@ -212,8 +329,12 @@ flowchart TD
 | JWT | Authentication |
 | bcryptjs | Password hashing |
 | Passport GitHub | GitHub OAuth login |
-| Nodemailer | Email verification and password reset support |
-| Axios | Communication with AI service and GitHub APIs |
+| express-session | OAuth session handling |
+| Nodemailer | Local SMTP email support |
+| Axios | Communication with AI service, GitHub APIs, and email APIs |
+| Brevo API | Deployed transactional email delivery |
+| Resend API | Optional email delivery provider |
+| Render | Backend deployment |
 
 ### AI Service
 
@@ -225,6 +346,19 @@ flowchart TD
 | Groq SDK | LLM integration |
 | Pydantic | Request/response validation |
 | python-dotenv | Environment configuration |
+| Render | AI service deployment |
+
+### Database and External Services
+
+| Service | Purpose |
+|---|---|
+| MongoDB Atlas | Cloud database |
+| GitHub OAuth | OAuth login and repository access |
+| Groq Cloud | LLaMA model inference |
+| Brevo | Transactional email delivery |
+| Resend | Optional transactional email delivery |
+| Netlify | Frontend hosting |
+| Render | Backend and AI-service hosting |
 
 ---
 
@@ -233,7 +367,11 @@ flowchart TD
 ```txt
 Meridian-main/
 ├── frontend/
+│   ├── public/
+│   │   └── _redirects
 │   ├── src/
+│   │   ├── assets/
+│   │   │   └── meridian-logo.png
 │   │   ├── components/
 │   │   │   ├── CodeEditor.jsx
 │   │   │   ├── DiffView.jsx
@@ -272,7 +410,8 @@ Meridian-main/
 │   │   └── auth.js
 │   ├── models/
 │   │   ├── User.js
-│   │   └── Review.js
+│   │   ├── Review.js
+│   │   └── PendingRegistration.js
 │   ├── routes/
 │   │   ├── auth.js
 │   │   ├── github.js
@@ -301,7 +440,9 @@ Meridian-main/
 
 Create `.env` files from the provided `.env.example` files.
 
-### Backend `.env`
+Never commit real `.env` files or real secrets.
+
+### Backend `.env` for Local Development
 
 ```env
 PORT=5000
@@ -319,28 +460,77 @@ GITHUB_CLIENT_SECRET=your_github_oauth_client_secret
 GITHUB_CALLBACK_URL=http://localhost:5000/api/github/callback
 
 APP_NAME=Meridian.ai
-EMAIL_HOST=
+
+EMAIL_PROVIDER=smtp
+EMAIL_HOST=smtp.gmail.com
 EMAIL_PORT=587
 EMAIL_SECURE=false
-EMAIL_USER=
-EMAIL_PASS=
-EMAIL_FROM=
+EMAIL_USER=your_email@example.com
+EMAIL_PASS=your_app_password
+EMAIL_FROM=your_email@example.com
+SMTP_STRICT=false
 ```
 
-### Frontend `.env`
+### Backend Environment for Render Deployment
+
+```env
+NODE_ENV=production
+
+FRONTEND_URL=https://meridian-ai-review.netlify.app
+AI_SERVICE_URL=https://meridian-ai-service.onrender.com
+
+MONGO_URI=your_mongodb_atlas_connection_string
+JWT_SECRET=replace_with_strong_jwt_secret
+SESSION_SECRET=replace_with_strong_session_secret
+
+GITHUB_CLIENT_ID=your_github_oauth_client_id
+GITHUB_CLIENT_SECRET=your_github_oauth_client_secret
+GITHUB_CALLBACK_URL=https://meridian-backend-7jah.onrender.com/api/github/callback
+
+APP_NAME=Meridian.ai
+
+EMAIL_PROVIDER=brevo
+BREVO_API_KEY=your_brevo_api_key
+EMAIL_FROM=your_verified_sender_email
+SMTP_STRICT=false
+```
+
+Optional Resend configuration:
+
+```env
+EMAIL_PROVIDER=resend
+RESEND_API_KEY=your_resend_api_key
+EMAIL_FROM=your_verified_sender_email
+SMTP_STRICT=false
+```
+
+> Do not commit real environment variable values or API keys.
+
+### Frontend `.env` for Local Development
 
 ```env
 VITE_API_URL=http://localhost:5000/api
 ```
 
-### AI Service `.env`
+### Frontend Environment for Netlify Deployment
+
+```env
+VITE_API_URL=https://meridian-backend-7jah.onrender.com/api
+```
+
+### AI Service `.env` for Local Development
 
 ```env
 GROQ_API_KEY=your_groq_api_key_here
 GROQ_MODEL=llama-3.3-70b-versatile
 ```
 
-> Do not commit real `.env` files. Commit only `.env.example` files.
+### AI Service Environment for Render Deployment
+
+```env
+GROQ_API_KEY=your_groq_api_key_here
+GROQ_MODEL=llama-3.3-70b-versatile
+```
 
 ---
 
@@ -353,8 +543,9 @@ GROQ_MODEL=llama-3.3-70b-versatile
 - MongoDB running locally or MongoDB Atlas connection string
 - Groq API key
 - GitHub OAuth app credentials
+- Brevo API key for deployed email delivery
 
-### 1. Clone the repository
+### 1. Clone the Repository
 
 ```bash
 git clone <your-repository-url>
@@ -363,13 +554,15 @@ cd Meridian-main
 
 ### 2. Start MongoDB
 
-For local MongoDB, make sure MongoDB service is running.
+For local MongoDB, make sure the MongoDB service is running.
 
 Default local connection:
 
 ```txt
 mongodb://127.0.0.1:27017/meridian
 ```
+
+For deployment, use MongoDB Atlas and set `MONGO_URI` in Render.
 
 ### 3. Setup AI Service
 
@@ -410,6 +603,12 @@ Health check:
 http://localhost:8000/health
 ```
 
+Expected deployed health check:
+
+```txt
+https://meridian-ai-service.onrender.com/health
+```
+
 ### 4. Setup Backend
 
 ```bash
@@ -429,6 +628,12 @@ Backend health check:
 http://localhost:5000/api/health
 ```
 
+Expected deployed health check:
+
+```txt
+https://meridian-backend-7jah.onrender.com/api/health
+```
+
 ### 5. Setup Frontend
 
 ```bash
@@ -443,95 +648,135 @@ Frontend URL:
 http://localhost:5173
 ```
 
+Deployed frontend:
+
+```txt
+https://meridian-ai-review.netlify.app
+```
+
 ---
 
 ## Application Routes
 
 | Route | Description | Access |
 |---|---|---|
-| `/` | Home page | Public |
+| `/` | Landing/Home page | Public |
 | `/login` | Login page | Public |
-| `/register` | Register page | Public |
+| `/register` | Registration page with email verification | Public |
 | `/forgot-password` | Forgot password page | Public |
 | `/reset-password/:token` | Reset password page | Public |
 | `/github/callback` | GitHub OAuth callback handler | Public callback |
-| `/review` | Code review page | Authenticated |
-| `/history` | Review history page | Authenticated |
-| `/profile` | Profile dashboard | Authenticated |
+| `/review` | Code review workspace | Protected |
+| `/history` | Review history page | Protected |
+| `/profile` | User profile dashboard | Protected |
 | `/share/:token` | Public shared review page | Public read-only |
 
 ---
 
 ## Backend API Endpoints
 
-### Auth APIs
+### Health
 
 | Method | Endpoint | Description |
 |---|---|---|
-| POST | `/api/auth/register` | Register a new user |
-| POST | `/api/auth/login` | Login using email/username and password |
-| POST | `/api/auth/verify-login-code` | Verify login code and generate JWT |
-| POST | `/api/auth/forgot-password` | Send password reset link |
-| POST | `/api/auth/reset-password/:token` | Reset password using token |
-| GET | `/api/auth/profile` | Fetch logged-in user profile |
-| PUT | `/api/auth/profile` | Update profile details |
+| GET | `/api/health` | Backend health check |
 
-### Review APIs
+### Authentication
 
 | Method | Endpoint | Description |
 |---|---|---|
-| POST | `/api/review/analyze` | Analyze submitted code |
-| GET | `/api/review/history` | Fetch user review history |
-| GET | `/api/review/:id` | Fetch one private review |
-| DELETE | `/api/review/:id` | Delete a review |
-| POST | `/api/review/share/:id` | Generate public share link |
-| GET | `/api/review/public/:token` | Fetch public shared review |
+| POST | `/api/auth/send-register-code` | Send registration verification code |
+| POST | `/api/auth/register` | Create verified user account |
+| POST | `/api/auth/login` | Login using username/email and password |
+| POST | `/api/auth/verify-login` | Verify login code |
+| POST | `/api/auth/forgot-password` | Request password reset link |
+| POST | `/api/auth/reset-password/:token` | Reset password |
+| GET | `/api/auth/profile` | Get logged-in user profile |
+| PUT | `/api/auth/profile` | Update display name, bio, or avatar |
+| POST | `/api/auth/logout` | Logout user |
 
-### GitHub APIs
+### GitHub OAuth and Repository Access
 
 | Method | Endpoint | Description |
 |---|---|---|
 | GET | `/api/github/login` | Start GitHub OAuth login |
 | GET | `/api/github/callback` | GitHub OAuth callback |
-| GET | `/api/github/repos` | Fetch user repositories |
-| GET | `/api/github/repos/:owner/:repo/contents` | Fetch repository contents |
-| GET | `/api/github/repos/:owner/:repo/file` | Fetch file content |
+| GET | `/api/github/repos` | Fetch GitHub repositories |
+| GET | `/api/github/repos/:owner/:repo/contents` | Browse repository contents |
+| GET | `/api/github/file` | Load selected GitHub file content |
 
-### AI Service APIs
+### Review
 
 | Method | Endpoint | Description |
 |---|---|---|
-| GET | `/` | AI service status |
+| POST | `/api/review/analyze` | Analyze submitted code |
+| GET | `/api/review/history` | Get logged-in user's review history |
+| GET | `/api/review/:id` | Get a review by ID |
+| DELETE | `/api/review/:id` | Delete a review |
+| POST | `/api/review/:id/share` | Create or return public share link |
+| GET | `/api/review/share/:token` | Get public shared review |
+
+### AI Service
+
+| Method | Endpoint | Description |
+|---|---|---|
 | GET | `/health` | AI service health check |
-| POST | `/analyze` | Analyze code and return review |
-| GET | `/models` | Show available AI model/scoring version |
+| POST | `/review` | Analyze code and return structured review |
 
 ---
 
 ## AI Review and Scoring Logic
 
-The AI service uses a hybrid approach:
+Meridian.ai uses a hybrid review approach:
 
-1. Rule files provide review context for security, accessibility, code quality, and output format.
-2. Groq LLM generates structured review suggestions.
-3. AI JSON response is cleaned, parsed, and normalized.
-4. Deterministic static scoring calculates a stable final score.
-5. Backend stores the normalized review result in MongoDB.
+1. The AI service loads rule context from rule files.
+2. The submitted code and detected language are sent to the AI review prompt.
+3. The Groq-hosted LLaMA model generates a structured JSON review.
+4. The AI service validates and cleans the response.
+5. The scoring system applies hybrid issue-based scoring.
+6. The backend stores the final review result.
 
 Current scoring version:
 
 ```txt
-deterministic-static-v5
+hybrid-issue-based-v7
 ```
 
-Expected scoring behavior:
+Rule files used by the AI service:
 
-| Code Quality | Expected Result |
+```txt
+owasp_rules.txt
+gigw_accessibility_rules.txt
+code_quality_rules.txt
+review_output_rules.txt
+```
+
+Review output format:
+
+```json
+{
+  "summary": "Brief summary of code quality and main risks",
+  "overallScore": 85,
+  "suggestions": [
+    {
+      "line": 10,
+      "severity": "medium",
+      "category": "code_quality",
+      "issue": "Specific issue found",
+      "suggestion": "Practical fix",
+      "refactoredCode": "Improved code snippet"
+    }
+  ]
+}
+```
+
+Score classification:
+
+| Score Range | Label |
 |---|---|
-| Very poor or insecure code | Low score / Poor |
-| Medium quality code | Mid score / Fair |
-| Clean and structured code | High score / Good |
-| Same code reviewed repeatedly | Stable or nearly stable score |
+| 80-100 | Good |
+| 50-79 | Fair |
+| 0-49 | Poor |
 
 ---
 
@@ -539,281 +784,212 @@ Expected scoring behavior:
 
 ### Authentication Testing
 
-- Register a new user.
+- Register using a new username and email.
+- Confirm password mismatch validation.
+- Verify that registration code is sent to email.
+- Complete registration using the 6-digit code.
 - Login using email.
 - Login using username.
-- Verify login code.
+- Verify two-step login code flow.
 - Test forgot password.
-- Reset password and login again.
-- Login using GitHub OAuth.
-- Logout and confirm protected pages are blocked.
+- Test reset password link.
+- Test logout.
+- Test GitHub OAuth login.
 
-### Review Testing
+### Code Review Testing
 
-- Paste code and run review.
-- Upload a code file.
-- Load a file from GitHub.
-- Submit bad, medium, and good code samples.
-- Confirm score ranking is logical.
-- Confirm suggestions show severity and category.
-- Confirm Diff View opens and wraps code correctly.
-- Submit more than 500 lines and confirm validation works.
+Test with:
 
-### History Testing
+- Bad/insecure code.
+- Medium-quality code.
+- Clean/good code.
+- React accessibility code.
+- Uploaded files.
+- GitHub-loaded files.
+- Unsupported or empty input.
+- Code exceeding the line limit.
 
-- Confirm completed reviews are saved.
-- Open review details from history.
-- Use score filters.
+Expected behavior:
+
+- Bad code should receive a low/Poor score.
+- Medium code should receive a Fair score.
+- Good code should receive a high/Good score.
+- Accessibility issues should appear for weak JSX/HTML UI code.
+- Suggestions should include severity, category, issue, fix, and refactored code.
+
+### Review History Testing
+
+- Submit multiple reviews.
+- Open review history.
+- Filter by Good/Fair/Poor.
+- Open review details.
 - Delete a review.
 - Share a review.
-- Open shared review link in logged-out mode.
+- Open shared review link in another browser or incognito window.
 
 ### Profile Testing
 
 - Open profile dashboard.
-- Edit display name and bio.
-- Change preset avatar for email/password user.
-- Confirm GitHub user keeps GitHub avatar.
-- Confirm review statistics update after reviews.
+- Edit display name.
+- Confirm username remains unchanged.
+- Confirm username is displayed separately from display name.
+- Edit bio.
+- Check account type.
+- Check GitHub account details for GitHub users.
+- Verify review statistics update after reviews.
 
-### Error Handling Testing
+### Deployment Testing
 
-- Stop AI service and click Analyze.
-- Use invalid GitHub token/session.
-- Test invalid shared review token.
-- Test backend with missing required environment variables.
-- Test AI quota/rate-limit response.
+- Open deployed frontend.
+- Register a new account.
+- Confirm verification email delivery.
+- Login and submit code.
+- Open history.
+- Share review link.
+- Open direct routes after refresh:
+  - `/review`
+  - `/history`
+  - `/profile`
+  - `/share/:token`
+  - `/reset-password/:token`
 
 ---
 
 ## Team Contributions
 
-The work was divided module-wise so that every member contributed to a major and visible part of the system.
-
-### Yash — Frontend Review Workflow and Code Analysis UI
-
-**Role:** Frontend Developer
-
-Yash worked on the main code review interface and the user-facing review experience.
-
-**Contributions:**
-
-- Developed and improved the main Review page UI.
-- Worked on code input/editor layout and review submission flow.
-- Integrated code paste/upload UI with backend review APIs.
-- Added frontend 500-line limit display and user guidance.
-- Improved review result section with score, summary, severity counts, and suggestions.
-- Worked on Diff View layout for original code and suggested fix comparison.
-- Fixed code wrapping and long-code layout issues in review and diff panels.
-- Improved button styling, cards, spacing, and responsive behavior in the review flow.
-
-**Impact:**
-
-Yash handled the central user-facing feature of the project: the code review screen where users submit code and view AI-generated feedback.
-
----
-
-### Aditi — Frontend Authentication, History, Profile and UI Polish
-
-**Role:** Frontend Developer
-
-Aditi worked on frontend pages related to user access, profile, dashboard, history, sharing, and overall interface polish.
-
-**Contributions:**
-
-- Developed and improved Login and Register page UI.
-- Added Forgot Password and Reset Password frontend pages.
-- Updated login UI to support email or username login.
-- Worked on Profile Dashboard frontend.
-- Added Edit Profile UI with display name, bio, and avatar options.
-- Added preset avatar selection for email/password users.
-- Maintained GitHub avatar-only display for GitHub users.
-- Improved History page UI with Good/Fair/Poor filters and review cards.
-- Worked on public Shared Review page UI.
-- Improved overall frontend styling, theme consistency, spacing, and visual polish.
-
-**Impact:**
-
-Aditi handled major account, profile, history, and public sharing pages, making the application feel complete, polished, and professional.
-
----
-
-### Basit — Backend Authentication, GitHub Integration, AI Prompt and Scoring Logic
-
-**Role:** Backend Developer + AI Prompt and Scoring Contributor
-
-Basit worked on backend authentication, GitHub integration, and important AI-service logic related to prompt design and scoring improvement.
-
-**Contributions:**
-
-- Implemented and improved user authentication backend.
-- Added login support using either email or username.
-- Maintained the verification-code login flow.
-- Added Forgot Password and Reset Password backend functionality.
-- Added secure reset-token handling and expiry validation.
-- Worked on email service support for authentication and password reset messages.
-- Implemented GitHub OAuth login flow.
-- Added GitHub repository and file-access APIs.
-- Improved GitHub token validation and GitHub API error handling.
-- Built and refined the AI review prompt used for generating structured code-review feedback.
-- Improved the scoring logic so bad, medium, and good-quality code receive more logical scores.
-- Helped reduce repeated-review score variation for the same submitted code.
-- Supported backend-to-AI-service integration so review results could be stored and displayed correctly.
-- Added handling for AI-service timeout, unavailable service, invalid response, and quota/rate-limit cases at the backend integration layer.
-
-**Impact:**
-
-Basit handled critical backend access features and contributed to the AI prompt and scoring layer, ensuring users can log in securely, connect GitHub, submit code, and receive more reliable AI review scores through a stable backend workflow.
-
----
-
-### Kantesh — Backend Review System, Database and API Hardening
-
-**Role:** Backend Developer
-
-Kantesh worked on the backend review system, MongoDB models, review history, public sharing, validation, and API safety.
-
-**Contributions:**
-
-- Developed and improved review controller APIs.
-- Added backend 500-line validation for code submissions.
-- Added empty code and invalid input validation.
-- Updated Review model for structured suggestions.
-- Added severity and category support in saved reviews.
-- Implemented review history storage and retrieval.
-- Added ownership protection for review view, delete, and share actions.
-- Added delete review functionality.
-- Added share review functionality using public tokens.
-- Added public shared review backend API.
-- Improved MongoDB connection handling.
-- Improved backend route-level validation and clean error responses.
-
-**Impact:**
-
-Kantesh handled the core backend review and database system, ensuring reviews are validated, stored, protected, retrieved, deleted, and shared safely.
-
----
-
-### Kriti — AI-Service Rules, Review Standards, AI Response Handling and QA
-
-**Role:** AI-Service Developer + Integration and QA Lead
-
-Kriti worked on the AI-service rule base, review standards, response validation, service reliability, and final testing of the complete project.
-
-**Contributions:**
-
-- Created and maintained the AI-service rule text files used as review context.
-- Added GIGW/accessibility rules for government-style accessibility and usability checks.
-- Added OWASP-inspired security rules for identifying insecure coding patterns.
-- Added code-quality and best-practice rules for maintainability and cleaner code suggestions.
-- Added review-output rules to keep AI responses structured and consistent.
-- Worked on Groq-based AI review service integration and AI-service request/response handling.
-- Added AI response cleaning, JSON parsing, and validation logic.
-- Verified that AI suggestions include severity, category, issue, suggestion, and refactored code.
-- Improved AI-service error handling for missing API key, timeout, quota/rate-limit, and invalid AI response cases.
-- Helped ensure the AI service follows rule-based review standards instead of giving random or unsupported suggestions.
-- Performed end-to-end testing of the AI review flow.
-- Coordinated integration testing across frontend, backend, and AI service.
-- Tested authentication, review, history, profile, sharing, GitHub, and AI error-handling flows.
-
-**Impact:**
-
-Kriti handled the AI-service rule foundation, output reliability, and final integration testing, ensuring that Meridian.ai produces structured, rule-guided, and meaningful code review feedback.
-
----
-
-### Contribution Summary Table
-
-| Team Member | Main Area | Key Contribution |
-|---|---|---|
-| Yash | Frontend Review UI | Review page, code editor flow, result display, Diff View, review page responsiveness |
-| Aditi | Frontend Auth/Profile/History | Login/Register UI, forgot/reset pages, profile dashboard, history page, shared review UI |
-| Basit | Backend Auth + GitHub + AI Prompt/Scoring | Email/username login, password reset APIs, GitHub OAuth, GitHub APIs, AI prompt, scoring logic |
-| Kantesh | Backend Review + Database | Review APIs, MongoDB review model, validation, history, delete/share, public share API |
-| Kriti | AI-Service Rules + Validation + QA | GIGW/OWASP/code-quality rule files, review-output rules, AI response validation, AI-service reliability, integration testing |
+| Team Member | Contribution Area |
+|---|---|
+| Kriti | Testing lead, AI service contribution, integration support, scoring validation, QA, documentation support |
+| Basit | Backend development, authentication, GitHub OAuth, AI service contribution, deployment support |
+| Kantesh | Backend development, review APIs, database integration, validation support |
+| Yash | Frontend development, UI pages, review workspace, styling improvements |
+| Aditi | Frontend development, responsive UI, auth pages, dashboard/profile UI support |
 
 ---
 
 ## Security and Validation
 
-- Passwords are hashed before storage.
-- JWT is used for protected API access.
-- Private review APIs require authentication.
-- Review ownership is checked before view, delete, and share operations.
-- Public shared review access requires a valid share token.
-- Shared review response does not expose private user details.
-- Code input is limited to 500 lines.
-- Backend rejects invalid JSON and oversized requests.
-- AI-service failures are handled gracefully.
+Meridian.ai includes several security and validation measures:
+
+- Passwords are hashed using bcrypt.
+- JWT is used for protected API routes.
+- GitHub OAuth credentials are stored only on the backend.
+- Groq API key is stored only in AI service environment variables.
+- MongoDB connection string is stored only in backend environment variables.
+- Registration requires email verification.
+- Login can use verification code flow.
+- Password reset uses token-based reset flow.
+- Public shared review response avoids exposing private user data.
+- Backend protects user-specific review routes.
+- Frontend validates required fields.
+- Backend validates authentication before protected actions.
+- AI service validates and cleans AI responses.
+- Code length validation prevents overly large submissions.
+- Environment variables are used for production URLs.
 - Real `.env` files should never be committed.
-
-Recommended `.gitignore` entries:
-
-```gitignore
-node_modules/
-.env
-__pycache__/
-*.pyc
-venv/
-dist/
-```
 
 ---
 
 ## Deployment Notes
 
-For deployment, update environment variables with production URLs.
+### Frontend Deployment
 
-### Frontend
+Frontend is deployed on Netlify.
 
-- Deploy frontend on platforms such as Vercel, Netlify, or Render Static Site.
-- Set `VITE_API_URL` to the deployed backend API URL.
-
-Example:
+Important frontend environment variable:
 
 ```env
-VITE_API_URL=https://your-backend-url.com/api
+VITE_API_URL=https://meridian-backend-7jah.onrender.com/api
 ```
 
-### Backend
+Netlify SPA redirect file:
 
-- Deploy backend on platforms such as Render, Railway, or similar Node.js hosting.
-- Set `FRONTEND_URL` to the deployed frontend URL.
-- Set `AI_SERVICE_URL` to the deployed AI-service URL.
-- Use MongoDB Atlas for cloud database.
-- Configure GitHub OAuth callback URL with deployed backend URL.
+```txt
+frontend/public/_redirects
+```
 
-Example:
+Required content:
+
+```txt
+/* /index.html 200
+```
+
+This allows deployed routes like `/profile`, `/history`, `/review`, `/share/:token`, and `/reset-password/:token` to work after refresh.
+
+### Backend Deployment
+
+Backend is deployed on Render.
+
+Important backend environment variables:
 
 ```env
-FRONTEND_URL=https://your-frontend-url.com
-AI_SERVICE_URL=https://your-ai-service-url.com
-GITHUB_CALLBACK_URL=https://your-backend-url.com/api/github/callback
+NODE_ENV=production
+FRONTEND_URL=https://meridian-ai-review.netlify.app
+AI_SERVICE_URL=https://meridian-ai-service.onrender.com
+GITHUB_CALLBACK_URL=https://meridian-backend-7jah.onrender.com/api/github/callback
+EMAIL_PROVIDER=brevo
+BREVO_API_KEY=your_brevo_api_key
+EMAIL_FROM=your_verified_sender_email
+SMTP_STRICT=false
 ```
 
-### AI Service
+Do not hardcode localhost API URLs in deployed frontend/backend code.
 
-- Deploy AI service on a Python-supported hosting platform.
-- Set `GROQ_API_KEY` and `GROQ_MODEL` in the hosting dashboard.
-- Confirm `/health` works after deployment.
+### AI Service Deployment
+
+AI service is deployed on Render.
+
+Important AI service environment variables:
+
+```env
+GROQ_API_KEY=your_groq_api_key_here
+GROQ_MODEL=llama-3.3-70b-versatile
+```
+
+AI service health check:
+
+```txt
+https://meridian-ai-service.onrender.com/health
+```
+
+### GitHub OAuth Configuration
+
+GitHub OAuth App settings should use:
+
+```txt
+Homepage URL:
+https://meridian-ai-review.netlify.app
+
+Authorization callback URL:
+https://meridian-backend-7jah.onrender.com/api/github/callback
+```
 
 ---
 
 ## Future Scope
 
-- Team-based workspaces.
-- Pull request review integration.
-- PDF/exportable review reports.
-- More language-specific static analysis rules.
-- Admin dashboard.
-- Comment threads on review suggestions.
-- Role-based access control.
-- CI/CD integration.
-- Support for private organization repositories.
+Possible future improvements:
+
+- Add HttpOnly SameSite cookie-based authentication.
+- Add refresh token flow.
+- Add admin dashboard.
+- Add organization/team workspaces.
+- Add GitHub pull request review integration.
+- Add downloadable PDF review report.
+- Add advanced analytics dashboard.
+- Add review comparison between multiple versions.
+- Add support for more programming languages.
+- Add repository-level batch review.
+- Add notification system.
+- Add Redis or MongoDB-backed session store for production OAuth sessions.
+- Add stricter file-type scanning for uploads.
+- Add rate limiting for public APIs.
+- Add role-based access control.
 
 ---
 
-## Final Note
+## Conclusion
 
-Meridian.ai is designed to support faster, more structured, and more reliable code review. It combines AI-powered review suggestions with deterministic scoring, secure authentication, review history, GitHub integration, and public review sharing to create a practical developer productivity tool.
+Meridian.ai is a full-stack AI-powered code review platform that combines a modern React frontend, secure Node.js/Express backend, MongoDB persistence, GitHub OAuth integration, email verification workflows, public review sharing, and a FastAPI-based AI microservice using Groq LLM.
 
+The system helps developers get fast, structured, and actionable feedback on code quality, bugs, accessibility, security, and maintainability, making it useful for students, junior developers, and teams looking for faster review support.
