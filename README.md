@@ -1,7 +1,7 @@
 # Meridian.ai — AI-Powered Code Review and Bug Suggestion System
 
 <p align="center">
-  <img src="frontend/src/assets/meridian-logo-dark.png" alt="Meridian.ai Logo" width="120" />
+  <img src="frontend/src/assets/meridian-logo-dark.png" alt="Meridian.ai Logo" width="160" />
 </p>
 
 <p align="center">
