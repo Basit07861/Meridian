@@ -859,7 +859,7 @@ Expected behavior:
 
 | Team Member | Contribution Area |
 |---|---|
-| Kriti | Testing lead, AI service contribution, integration support, scoring validation, QA, documentation support |
+| Kriti | Testing lead, AI service contribution, integration support, scoring validation, QA |
 | Basit | Backend development, authentication, GitHub OAuth, AI service contribution, deployment support |
 | Kantesh | Backend development, review APIs, database integration, validation support |
 | Yash | Frontend development, UI pages, review workspace, styling improvements |
