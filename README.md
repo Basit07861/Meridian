@@ -1,7 +1,7 @@
 # Meridian.ai — AI-Powered Code Review and Bug Suggestion System
 
 <p align="center">
-  <img src="frontend/src/assets/meridian-logo-dark.png" alt="Meridian.ai Logo" width="160" />
+  <img src="frontend/src/assets/meridian-logo-dark.png" alt="Meridian.ai Logo" width="120" />
 </p>
 
 <p align="center">
@@ -857,13 +857,71 @@ Expected behavior:
 
 ## Team Contributions
 
-| Team Member | Contribution Area |
-|---|---|
-| Kriti | Testing lead, AI service contribution, integration support, scoring validation, QA |
-| Basit | Backend development, authentication, GitHub OAuth, AI service contribution, deployment support |
-| Kantesh | Backend development, review APIs, database integration, validation support |
-| Yash | Frontend development, UI pages, review workspace, styling improvements |
-| Aditi | Frontend development, responsive UI, auth pages, dashboard/profile UI support |
+Meridian.ai was developed as a collaborative full-stack project with responsibilities divided across frontend development, backend development, AI-service integration, testing, documentation, and deployment support.
+
+| Team Member | Primary Role | Detailed Contribution |
+|---|---|---|
+| Kriti | Testing Lead, AI Service Contributor, Integration Support | Led end-to-end testing of Meridian.ai across authentication, review generation, history, sharing, profile dashboard, deployment flows, and AI scoring. Contributed to AI-service testing, rule validation, scoring verification, bug reporting, demo preparation, and overall integration checks between frontend, backend, and AI service. |
+| Basit | Backend Developer, AI Service Prompt Contributor, Deployment Support | Worked on backend APIs, authentication flow, GitHub OAuth integration, user management, review handling, AI-service communication, deployment support, and backend debugging. Also worked on AI-service prompt design to guide structured review output, severity classification, issue categories, scoring behavior, and practical code-improvement suggestions. |
+| Kantesh | Backend Developer, Database and API Support | Worked on backend route handling, MongoDB/Mongoose integration, review-related API logic, validation support, data storage, and backend reliability improvements. Supported protected routes, review history handling, and backend-side checks needed for stable application behavior. |
+| Yash | Frontend Developer, Review Workspace UI | Developed and improved frontend screens and user-facing review workflows, including the review workspace, code input experience, review result display, UI components, styling improvements, and frontend integration with backend APIs. Helped improve the visual structure and usability of the application. |
+| Aditi | Frontend Developer, Responsive UI and Dashboard Support | Worked on frontend pages, responsive layout improvements, authentication screens, profile/dashboard UI support, page styling, and user experience improvements. Helped make the interface cleaner, more consistent, and easier to use across different screen sizes. |
+
+### Contribution Highlights
+
+#### Kriti — Testing, QA, AI Validation, and Documentation
+
+- Planned and performed testing for the complete Meridian.ai workflow.
+- Tested user registration, email verification, login, GitHub OAuth, logout, forgot password, and reset password flows.
+- Verified code review behavior using bad, medium, good, and accessibility-focused code samples.
+- Checked AI scoring consistency and helped validate the final hybrid issue-based scoring behavior.
+- Tested review history filters, delete review, public share links, profile dashboard, and deployed routes.
+- Reported UI, API, CORS, deployment, and scoring-related issues during integration.
+- Helped validate production deployment behavior on Netlify and Render.
+- Contributed to testing guide and project demo preparation.
+
+#### Basit — Backend, Authentication, GitHub OAuth, and AI Prompt Design
+
+- Developed and supported backend authentication and user-management functionality.
+- Worked on GitHub OAuth login and GitHub-related backend integration.
+- Helped connect the backend review API with the FastAPI AI service.
+- Worked on AI-service prompt design to improve the quality and structure of AI-generated code reviews.
+- Helped guide the AI output format, including review summaries, issue categories, severity levels, suggestions, and refactored-code responses.
+- Supported improvements in AI review behavior and scoring consistency.
+- Supported backend deployment and environment-variable configuration.
+- Contributed to debugging backend issues related to API calls, authentication, AI-service communication, and deployment.
+- Helped improve backend reliability for review generation and user flows.
+
+#### Kantesh — Backend APIs, Database, and Validation
+
+- Worked on backend API development and route handling.
+- Supported MongoDB/Mongoose models and database operations.
+- Helped implement and maintain review storage and retrieval logic.
+- Contributed to validation and error-handling improvements on backend routes.
+- Supported protected API behavior for authenticated user features.
+- Helped improve stability of backend data flow between frontend, database, and AI service.
+
+#### Yash — Frontend Review Experience and UI Development
+
+- Developed frontend pages and reusable UI components.
+- Worked on the code review workspace and review-result presentation.
+- Helped improve code input, review display, and suggestion visualization.
+- Contributed to frontend styling, layout consistency, and user experience improvements.
+- Integrated frontend components with backend API responses.
+- Supported UI fixes required during testing and deployment.
+
+#### Aditi — Frontend Responsiveness, Auth Pages, and Dashboard UI
+
+- Worked on frontend screens and responsive layout improvements.
+- Helped improve authentication pages such as login, register, forgot password, and reset password.
+- Contributed to profile dashboard UI and user-facing display improvements.
+- Improved page spacing, readability, and visual consistency across the application.
+- Supported mobile and desktop responsiveness fixes.
+- Helped refine the overall frontend presentation for demo readiness.
+
+### Overall Team Outcome
+
+Together, the team delivered a complete deployed AI-powered code review platform with secure authentication, GitHub OAuth, verified signup, password reset, AI-based code analysis, review history, public sharing, profile dashboard, responsive UI, and production-ready deployment support.
 
 ---
 
