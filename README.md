@@ -1,4 +1,4 @@
-# Meridian.ai — AI-Powered Code Review and Bug Suggestion System
+# Meridian AI — AI-Powered Code Review and Bug Suggestion System
 
 <p align="center">
   <img src="frontend/src/assets/meridian-logo-dark.png" alt="Meridian.ai Logo" width="120" />
@@ -45,7 +45,7 @@
 
 ## Project Overview
 
-**Meridian.ai** is an AI-powered code review and bug suggestion platform that helps developers identify bugs, security issues, accessibility concerns, performance problems, and code-quality improvements.
+**Meridian AI** is an AI-powered code review and bug suggestion platform that helps developers identify bugs, security issues, accessibility concerns, performance problems, and code-quality improvements.
 
 Users can submit code by pasting it directly, uploading a code file, or loading code from a GitHub repository. Meridian.ai analyzes the code through an AI microservice and returns a structured review containing an overall quality score, summary, severity-based issues, practical suggestions, and possible refactored code snippets.
 
@@ -76,7 +76,7 @@ Developers need a tool that can provide fast, understandable, and actionable fee
 
 ## Proposed Solution
 
-Meridian.ai provides a web-based platform where users can submit source code and receive AI-generated review feedback.
+Meridian AI provides a web-based platform where users can submit source code and receive AI-generated review feedback.
 
 The system combines:
 
@@ -459,7 +459,7 @@ GITHUB_CLIENT_ID=your_github_oauth_client_id
 GITHUB_CLIENT_SECRET=your_github_oauth_client_secret
 GITHUB_CALLBACK_URL=http://localhost:5000/api/github/callback
 
-APP_NAME=Meridian.ai
+APP_NAME=Meridian AI
 
 EMAIL_PROVIDER=smtp
 EMAIL_HOST=smtp.gmail.com
@@ -487,7 +487,7 @@ GITHUB_CLIENT_ID=your_github_oauth_client_id
 GITHUB_CLIENT_SECRET=your_github_oauth_client_secret
 GITHUB_CALLBACK_URL=https://meridian-backend-7jah.onrender.com/api/github/callback
 
-APP_NAME=Meridian.ai
+APP_NAME=Meridian AI
 
 EMAIL_PROVIDER=brevo
 BREVO_API_KEY=your_brevo_api_key
@@ -727,7 +727,7 @@ https://meridian-ai-review.netlify.app
 
 ## AI Review and Scoring Logic
 
-Meridian.ai uses a hybrid review approach:
+Meridian AI uses a hybrid review approach:
 
 1. The AI service loads rule context from rule files.
 2. The submitted code and detected language are sent to the AI review prompt.
@@ -857,11 +857,11 @@ Expected behavior:
 
 ## Team Contributions
 
-Meridian.ai was developed as a collaborative full-stack project with responsibilities divided across frontend development, backend development, AI-service integration, testing, documentation, and deployment support.
+Meridian AI was developed as a collaborative full-stack project with responsibilities divided across frontend development, backend development, AI-service integration, testing, documentation, and deployment support.
 
 | Team Member | Primary Role | Detailed Contribution |
 |---|---|---|
-| Kriti | Testing Lead, AI Service Contributor, Integration Support | Led end-to-end testing of Meridian.ai across authentication, review generation, history, sharing, profile dashboard, deployment flows, and AI scoring. Contributed to AI-service testing, rule validation, scoring verification, bug reporting, demo preparation, and overall integration checks between frontend, backend, and AI service. |
+| Kriti | Testing Lead, AI Service Contributor, Integration Support | Led end-to-end testing of Meridian AI across authentication, review generation, history, sharing, profile dashboard, deployment flows, and AI scoring. Contributed to AI-service testing, rule validation, scoring verification, bug reporting, demo preparation, and overall integration checks between frontend, backend, and AI service. |
 | Basit | Backend Developer, AI Service Prompt Contributor, Deployment Support | Worked on backend APIs, authentication flow, GitHub OAuth integration, user management, review handling, AI-service communication, deployment support, and backend debugging. Also worked on AI-service prompt design to guide structured review output, severity classification, issue categories, scoring behavior, and practical code-improvement suggestions. |
 | Kantesh | Backend Developer, Database and API Support | Worked on backend route handling, MongoDB/Mongoose integration, review-related API logic, validation support, data storage, and backend reliability improvements. Supported protected routes, review history handling, and backend-side checks needed for stable application behavior. |
 | Yash | Frontend Developer, Review Workspace UI | Developed and improved frontend screens and user-facing review workflows, including the review workspace, code input experience, review result display, UI components, styling improvements, and frontend integration with backend APIs. Helped improve the visual structure and usability of the application. |
@@ -871,7 +871,7 @@ Meridian.ai was developed as a collaborative full-stack project with responsibil
 
 #### Kriti — Testing, QA, AI Validation, and Documentation
 
-- Planned and performed testing for the complete Meridian.ai workflow.
+- Planned and performed testing for the complete Meridian AI workflow.
 - Tested user registration, email verification, login, GitHub OAuth, logout, forgot password, and reset password flows.
 - Verified code review behavior using bad, medium, good, and accessibility-focused code samples.
 - Checked AI scoring consistency and helped validate the final hybrid issue-based scoring behavior.
@@ -927,7 +927,7 @@ Together, the team delivered a complete deployed AI-powered code review platform
 
 ## Security and Validation
 
-Meridian.ai includes several security and validation measures:
+Meridian AI includes several security and validation measures:
 
 - Passwords are hashed using bcrypt.
 - JWT is used for protected API routes.
@@ -1048,6 +1048,6 @@ Possible future improvements:
 
 ## Conclusion
 
-Meridian.ai is a full-stack AI-powered code review platform that combines a modern React frontend, secure Node.js/Express backend, MongoDB persistence, GitHub OAuth integration, email verification workflows, public review sharing, and a FastAPI-based AI microservice using Groq LLM.
+Meridian AI is a full-stack AI-powered code review platform that combines a modern React frontend, secure Node.js/Express backend, MongoDB persistence, GitHub OAuth integration, email verification workflows, public review sharing, and a FastAPI-based AI microservice using Groq LLM.
 
 The system helps developers get fast, structured, and actionable feedback on code quality, bugs, accessibility, security, and maintainability, making it useful for students, junior developers, and teams looking for faster review support.
