@@ -1,35 +1,7 @@
 import { useState } from 'react';
 import SeverityBadge from './SeverityBadge';
+import { getQuality } from '../utils/reviewQuality';
 
-const getQuality = (score) => {
-  if (score >= 80) {
-    return {
-      label: 'Good',
-      icon: '✅',
-      color: 'var(--success)',
-      bg: 'var(--success-tint-10)',
-      border: 'var(--success-tint-25)',
-    };
-  }
-
-  if (score >= 50) {
-    return {
-      label: 'Fair',
-      icon: '⚠️',
-      color: 'var(--warning)',
-      bg: 'var(--warning-tint-10)',
-      border: 'var(--warning-tint-25)',
-    };
-  }
-
-  return {
-    label: 'Poor',
-    icon: '🔴',
-    color: 'var(--danger)',
-    bg: 'var(--danger-tint-10)',
-    border: 'var(--danger-tint-25)',
-  };
-};
 
 export default function ReviewPanel({ review }) {
   const [expanded, setExpanded] = useState(null);
@@ -41,12 +13,7 @@ export default function ReviewPanel({ review }) {
   const lowCount = review.suggestions?.filter((s) => s.severity === 'low').length || 0;
   const quality = getQuality(review.overallScore);
 
-  const progressGradient =
-    review.overallScore >= 70
-      ? 'linear-gradient(90deg,var(--success-strong),var(--success))'
-      : review.overallScore >= 40
-        ? 'linear-gradient(90deg,var(--warning-strong),var(--yellow))'
-        : 'linear-gradient(90deg,var(--danger-strong),var(--danger))';
+  const progressGradient = quality.progressGradient;
 
   const severityCards = [
     { count: highCount, label: 'High', color: 'var(--danger)', bg: 'var(--danger-tint-06)', border: 'var(--danger-tint-15)' },

@@ -1,11 +1,11 @@
 const Review = require('../models/Review');
 const crypto = require('crypto');
 const axios = require('axios');
+const { normalizeReviewSource } = require('../utils/reviewSource');
 
 const AI_SERVICE_URL = process.env.AI_SERVICE_URL || 'http://localhost:8000';
 const MAX_CODE_LINES = 500;
 const AI_TIMEOUT_MS = 130000;
-const ALLOWED_SOURCE_TYPES = ['paste', 'upload', 'github'];
 const ALLOWED_CATEGORIES = ['security', 'accessibility', 'performance', 'code_quality', 'ui_ux', 'best_practice', 'bug'];
 
 const normalizeLineEndings = (value) => {
@@ -64,15 +64,6 @@ const normalizeCategory = (category) => {
   return 'code_quality';
 };
 
-const normalizeSourceType = (sourceType) => {
-  const value = cleanText(sourceType, 'paste').toLowerCase();
-
-  if (ALLOWED_SOURCE_TYPES.includes(value)) {
-    return value;
-  }
-
-  return 'paste';
-};
 
 const normalizeSuggestions = (suggestions) => {
   if (!Array.isArray(suggestions)) {
@@ -160,12 +151,23 @@ const handleDatabaseError = (error, res, fallbackMessage = 'Database operation f
 };
 
 const analyzeCode = async (req, res) => {
-  const { code, language, title, sourceType, githubRepo } = req.body;
+  const { code, language, title, sourceType, sourceFileName, githubRepo, githubPath } = req.body;
 
   const validationError = validateCodeInput(code);
 
   if (validationError) {
     return res.status(400).json({ message: validationError });
+  }
+
+  const normalizedSource = normalizeReviewSource({
+    sourceType,
+    sourceFileName,
+    githubRepo,
+    githubPath,
+  });
+
+  if (normalizedSource.error) {
+    return res.status(400).json({ message: normalizedSource.error });
   }
 
   try {
@@ -193,8 +195,7 @@ const analyzeCode = async (req, res) => {
       suggestions: reviewData.suggestions,
       overallScore: reviewData.overallScore,
       summary: reviewData.summary,
-      sourceType: normalizeSourceType(sourceType),
-      githubRepo: githubRepo || null,
+      ...normalizedSource.value,
       shareableLink: crypto.randomBytes(16).toString('hex'),
     });
 

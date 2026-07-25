@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { getProfile, getReviews, updateProfile } from '../services/api';
+import { getQuality, getQualityKey } from '../utils/reviewQuality';
 
 const PRESET_AVATARS = [
   { id: 'avatar-1', icon: '👩‍💻', name: 'Developer', bg: 'linear-gradient(135deg, #2563eb, #7c3aed)' },
@@ -11,11 +12,7 @@ const PRESET_AVATARS = [
   { id: 'avatar-6', icon: '✨', name: 'Meridian', bg: 'linear-gradient(135deg, #9333ea, #2563eb)' },
 ];
 
-const getScoreLabel = (score) => {
-  if (score >= 80) return { label: 'Good', color: 'var(--success)', bg: 'var(--success-tint-10)', border: 'var(--success-tint-30)' };
-  if (score >= 50) return { label: 'Fair', color: 'var(--warning)', bg: 'var(--warning-tint-10)', border: 'var(--warning-tint-25)' };
-  return { label: 'Poor', color: 'var(--danger)', bg: 'var(--danger-tint-10)', border: 'var(--danger-tint-30)' };
-};
+const getScoreLabel = getQuality;
 
 const formatDate = (value) => {
   if (!value) return 'Not available';
@@ -162,10 +159,8 @@ export default function Profile() {
 
     const scoreBreakdown = reviews.reduce(
       (acc, review) => {
-        const score = Number(review.overallScore || 0);
-        if (score >= 80) acc.good += 1;
-        else if (score >= 50) acc.fair += 1;
-        else acc.poor += 1;
+        const qualityKey = getQualityKey(review.overallScore);
+        acc[qualityKey] += 1;
         return acc;
       },
       { good: 0, fair: 0, poor: 0 }

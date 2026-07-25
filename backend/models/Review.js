@@ -57,8 +57,20 @@ const ReviewSchema = new mongoose.Schema({
     enum: ['paste', 'upload', 'github'],  // How code was submitted
     default: 'paste'
   },
+  sourceFileName: {
+    type: String,
+    trim: true,
+    maxlength: 255        // Original uploaded/GitHub file name
+  },
   githubRepo: {
-    type: String          // If from GitHub, store repo name
+    type: String,
+    trim: true,
+    maxlength: 200        // owner/repository for GitHub reviews
+  },
+  githubPath: {
+    type: String,
+    trim: true,
+    maxlength: 500        // Selected file path inside the repository
   },
   createdAt: {
     type: Date,

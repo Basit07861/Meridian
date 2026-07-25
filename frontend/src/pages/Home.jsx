@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 
-const WORDS = ['JavaScript', 'Python', 'Java', 'TypeScript', 'C++', 'Go', 'Rust', 'Kotlin'];
+const WORDS = ['JavaScript', 'TypeScript', 'Python', 'Java', 'Kotlin', 'C', 'C++', 'Go', 'Rust', 'PHP', 'HTML', 'CSS'];
 
 const BUGS = [
   { type: 'SQL Injection', line: 4, severity: 'critical', code: 'query = "SELECT * FROM users WHERE id = " + userId' },
@@ -11,7 +11,7 @@ const BUGS = [
 ];
 
 const STEPS = [
-  { num: '01', icon: '📋', title: 'Paste your code', desc: 'Drop any language — Python, JS, Java, C++ and more' },
+  { num: '01', icon: '📋', title: 'Submit your code', desc: 'Paste code, upload a supported file, or load a file from GitHub' },
   { num: '02', icon: '🧠', title: 'AI scans every line', desc: 'LLaMA 3.3 70B powered by Groq LPU in seconds' },
   { num: '03', icon: '🎯', title: 'Get precise fixes', desc: 'Severity-tagged bugs with refactored code ready to use' },
 ];
@@ -182,7 +182,9 @@ export default function Home() {
             fontSize: 18, color: c.muted, maxWidth: 520, margin: '0 auto 48px',
             lineHeight: 1.75, fontWeight: 400,
           }}>
-            Paste your code. Our AI reviews every line, catches bugs, scores severity, and hands you the fix — in under 5 seconds.
+            Submit your code and receive structured feedback on bugs, security,
+            accessibility, performance, and code-quality issues, along with practical
+            suggestions and refactored code.
           </p>
 
           {/* CTAs */}
@@ -217,10 +219,10 @@ export default function Home() {
           {/* Stats row */}
           <div className="fade-up-4" style={{ display: 'flex', gap: 0, justifyContent: 'center', flexWrap: 'wrap' }}>
             {[
-              { val: '< 5s', label: 'avg review time' },
-              { val: '10+', label: 'languages supported' },
+              { val: '12', label: 'languages detected' },
+              { val: '500', label: 'lines per review' },
               { val: '3', label: 'severity levels' },
-              { val: '100%', label: 'ai powered' },
+              { val: '7', label: 'issue categories' },
             ].map(({ val, label }, i) => (
               <div key={i} style={{
                 padding: '0 32px',

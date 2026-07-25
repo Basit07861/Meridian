@@ -99,7 +99,7 @@ The system combines:
 - Forgot password and reset password functionality.
 - GitHub OAuth login.
 - JWT-based protected routes.
-- Logout flow.
+- Client-side logout by removing the stored JWT and returning the user to the login page.
 - Profile editing with display name, bio, and avatar options.
 - Username and display name shown separately on the profile page.
 - GitHub users retain their GitHub avatar.
@@ -119,11 +119,13 @@ The system combines:
 ### Code Review
 
 - Paste code directly into the editor.
-- Upload code files.
+- Upload supported code files up to 1 MB.
 - Load code from GitHub repositories.
 - Automatic language detection.
-- Improved language detection for JavaScript, TypeScript, Java, Python, C, C++, Go, Rust, PHP, JSX, and TSX.
-- 500-line validation support.
+- Automatic detection for JavaScript/JSX, TypeScript/TSX, Python, Java, Kotlin, C, C++, Go, Rust, PHP, HTML, and CSS.
+- 500-line validation in the frontend, backend, and AI service.
+- Accurate review-source tracking for pasted, uploaded, and GitHub-loaded code.
+- Upload/GitHub source metadata validation before a review is stored.
 - AI-generated review summary.
 - Severity-based suggestions: High, Medium, Low.
 - Category support:
@@ -685,15 +687,14 @@ https://meridian-ai-review.netlify.app
 
 | Method | Endpoint | Description |
 |---|---|---|
-| POST | `/api/auth/send-register-code` | Send registration verification code |
+| POST | `/api/auth/register/send-code` | Send registration verification code |
 | POST | `/api/auth/register` | Create verified user account |
 | POST | `/api/auth/login` | Login using username/email and password |
-| POST | `/api/auth/verify-login` | Verify login code |
+| POST | `/api/auth/verify-login-code` | Verify login code |
 | POST | `/api/auth/forgot-password` | Request password reset link |
 | POST | `/api/auth/reset-password/:token` | Reset password |
 | GET | `/api/auth/profile` | Get logged-in user profile |
 | PUT | `/api/auth/profile` | Update display name, bio, or avatar |
-| POST | `/api/auth/logout` | Logout user |
 
 ### GitHub OAuth and Repository Access
 
@@ -703,7 +704,7 @@ https://meridian-ai-review.netlify.app
 | GET | `/api/github/callback` | GitHub OAuth callback |
 | GET | `/api/github/repos` | Fetch GitHub repositories |
 | GET | `/api/github/repos/:owner/:repo/contents` | Browse repository contents |
-| GET | `/api/github/file` | Load selected GitHub file content |
+| GET | `/api/github/repos/:owner/:repo/file` | Load selected GitHub file content |
 
 ### Review
 
@@ -713,15 +714,15 @@ https://meridian-ai-review.netlify.app
 | GET | `/api/review/history` | Get logged-in user's review history |
 | GET | `/api/review/:id` | Get a review by ID |
 | DELETE | `/api/review/:id` | Delete a review |
-| POST | `/api/review/:id/share` | Create or return public share link |
-| GET | `/api/review/share/:token` | Get public shared review |
+| POST | `/api/review/share/:id` | Create or return public share link |
+| GET | `/api/review/public/:token` | Get public shared review |
 
 ### AI Service
 
 | Method | Endpoint | Description |
 |---|---|---|
 | GET | `/health` | AI service health check |
-| POST | `/review` | Analyze code and return structured review |
+| POST | `/analyze` | Analyze code and return structured review |
 
 ---
 
@@ -780,6 +781,18 @@ Score classification:
 
 ---
 
+## Automated Unit Tests
+
+The project includes dependency-free Node.js unit tests for the review-quality thresholds, language detection, upload validation, and backend review-source validation.
+
+```bash
+cd frontend
+npm test
+
+cd ../backend
+npm test
+```
+
 ## Testing Guide
 
 ### Authentication Testing
@@ -793,7 +806,7 @@ Score classification:
 - Verify two-step login code flow.
 - Test forgot password.
 - Test reset password link.
-- Test logout.
+- Test client-side logout and protected-route redirection.
 - Test GitHub OAuth login.
 
 ### Code Review Testing
@@ -804,7 +817,7 @@ Test with:
 - Medium-quality code.
 - Clean/good code.
 - React accessibility code.
-- Uploaded files.
+- Uploaded files, including unsupported extensions and files larger than 1 MB.
 - GitHub-loaded files.
 - Unsupported or empty input.
 - Code exceeding the line limit.
@@ -877,7 +890,6 @@ Meridian AI was developed as a collaborative full-stack project with responsibil
 - Checked AI scoring consistency and helped validate the final hybrid issue-based scoring behavior.
 - Tested review history filters, delete review, public share links, profile dashboard, and deployed routes.
 - Reported UI, API, CORS, deployment, and scoring-related issues during integration.
-- Helped validate production deployment behavior on Netlify and Render.
 - Contributed to testing guide and project demo preparation.
 
 #### Basit — Backend, Authentication, GitHub OAuth, and AI Prompt Design
@@ -1036,11 +1048,11 @@ Possible future improvements:
 - Add downloadable PDF review report.
 - Add advanced analytics dashboard.
 - Add review comparison between multiple versions.
-- Add support for more programming languages.
+- Add support for additional programming languages beyond the current 12-language detector.
 - Add repository-level batch review.
 - Add notification system.
 - Add Redis or MongoDB-backed session store for production OAuth sessions.
-- Add stricter file-type scanning for uploads.
+- Add binary-content/MIME inspection and malware scanning for uploads.
 - Add rate limiting for public APIs.
 - Add role-based access control.
 

@@ -2,36 +2,8 @@ import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import SeverityBadge from '../components/SeverityBadge';
 import { getPublicReview } from '../services/api';
+import { getQuality } from '../utils/reviewQuality';
 
-const getQuality = (score = 0) => {
-  if (score >= 80) {
-    return {
-      label: 'Good',
-      icon: '✅',
-      color: 'var(--success)',
-      bg: 'var(--success-tint-10)',
-      border: 'var(--success-tint-25)',
-    };
-  }
-
-  if (score >= 50) {
-    return {
-      label: 'Fair',
-      icon: '⚠️',
-      color: 'var(--warning)',
-      bg: 'var(--warning-tint-10)',
-      border: 'var(--warning-tint-25)',
-    };
-  }
-
-  return {
-    label: 'Poor',
-    icon: '🔴',
-    color: 'var(--danger)',
-    bg: 'var(--danger-tint-10)',
-    border: 'var(--danger-tint-25)',
-  };
-};
 
 const getSeverityCount = (suggestions = [], severity) => {
   return suggestions.filter((item) => item.severity === severity).length;

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getReviews, deleteReview, shareReview } from '../services/api';
+import { getQuality, matchesQualityFilter } from '../utils/reviewQuality';
 
 function SeverityBadge({ severity }) {
   const s = {
@@ -12,10 +13,17 @@ function SeverityBadge({ severity }) {
 }
 
 
-function getQuality(score) {
-  if (score >= 80) return { label: 'Good', icon: '✅', color: 'var(--success)', bg: 'var(--success-tint-10)', border: 'var(--success-tint-25)' };
-  if (score >= 50) return { label: 'Fair', icon: '⚠️', color: 'var(--warning)', bg: 'var(--warning-tint-10)', border: 'var(--warning-tint-25)' };
-  return { label: 'Poor', icon: '🔴', color: 'var(--danger)', bg: 'var(--danger-tint-10)', border: 'var(--danger-tint-25)' };
+
+function getSourceLabel(review) {
+  if (review?.sourceType === 'github') {
+    return review.githubRepo ? `GitHub · ${review.githubRepo}` : 'GitHub';
+  }
+
+  if (review?.sourceType === 'upload') {
+    return review.sourceFileName ? `Upload · ${review.sourceFileName}` : 'Upload';
+  }
+
+  return 'Pasted code';
 }
 
 function ReviewDetail({ review }) {
@@ -27,9 +35,9 @@ function ReviewDetail({ review }) {
     </div>
   );
 
-  const scoreColor = review.overallScore >= 70 ? 'var(--success)' : review.overallScore >= 40 ? 'var(--yellow)' : 'var(--danger)';
-  const progressGrad = review.overallScore >= 70 ? 'linear-gradient(90deg,var(--success-strong),var(--success))' : review.overallScore >= 40 ? 'linear-gradient(90deg,var(--warning-strong),var(--yellow))' : 'linear-gradient(90deg,var(--danger-strong),var(--danger))';
   const quality = getQuality(review.overallScore);
+  const scoreColor = quality.color;
+  const progressGrad = quality.progressGradient;
   const high = review.suggestions?.filter(s => s.severity === 'high').length || 0;
   const med  = review.suggestions?.filter(s => s.severity === 'medium').length || 0;
   const low  = review.suggestions?.filter(s => s.severity === 'low').length || 0;
@@ -44,6 +52,7 @@ function ReviewDetail({ review }) {
             <p style={{ fontSize: 12, color: 'var(--text-faint)' }}>
               {review.language !== 'unknown' && <span style={{ color: 'var(--brand-primary)', fontFamily: "'JetBrains Mono',monospace" }}>{review.language} · </span>}
               {new Date(review.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
+              {' · '}{getSourceLabel(review)}
             </p>
           </div>
           <div style={{ textAlign: 'right' }}>
@@ -149,13 +158,13 @@ export default function History() {
 
   const filtered = reviews.filter(r => {
     const matchSearch = !search || r.title?.toLowerCase().includes(search.toLowerCase()) || r.language?.toLowerCase().includes(search.toLowerCase());
-    const matchFilter = filter === 'all' || (filter === 'good' && r.overallScore >= 70) || (filter === 'fair' && r.overallScore >= 40 && r.overallScore < 70) || (filter === 'poor' && r.overallScore < 40);
+    const matchFilter = matchesQualityFilter(r.overallScore, filter);
     return matchSearch && matchFilter;
   });
 
-  const scoreColor = (s) => s >= 70 ? 'var(--success)' : s >= 40 ? 'var(--yellow)' : 'var(--danger)';
-  const scoreBg    = (s) => s >= 70 ? 'var(--success-tint-08)' : s >= 40 ? 'var(--yellow-tint-08)' : 'var(--danger-tint-08)';
-  const scoreBorder= (s) => s >= 70 ? 'var(--success-tint-20)' : s >= 40 ? 'var(--yellow-tint-20)' : 'var(--danger-tint-20)';
+  const scoreColor = (score) => getQuality(score).color;
+  const scoreBg = (score) => getQuality(score).bg;
+  const scoreBorder = (score) => getQuality(score).border;
 
   const S = {
     page: { minHeight: '100vh', background: 'var(--bg-page)', fontFamily: "'Outfit', sans-serif" },
@@ -336,6 +345,7 @@ export default function History() {
                       <p style={{ fontSize: 12, color: 'var(--text-faint)' }}>
                         {new Date(r.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
                         {' · '}{r.suggestions?.length || 0} issues
+                        {' · '}{getSourceLabel(r)}
                       </p>
                     </div>
                     <div style={{ padding: '6px 10px', borderRadius: 10, background: scoreBg(r.overallScore), border: `1px solid ${scoreBorder(r.overallScore)}`, color: scoreColor(r.overallScore), flexShrink: 0, textAlign: 'center', minWidth: 72 }}>
@@ -344,16 +354,84 @@ export default function History() {
                     </div>
                   </div>
 
-                  <div style={{ display: 'flex', gap: 8, marginTop: 12, paddingTop: 10, borderTop: '1px solid var(--surface-05)' }}>
-                    <button onClick={e => handleShare(e, r._id)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 12, color: 'var(--text-faint)', padding: '2px 6px', borderRadius: 5 }}
-                      onMouseEnter={e => e.currentTarget.style.color = 'var(--brand-primary)'}
-                      onMouseLeave={e => e.currentTarget.style.color = 'var(--text-faint)'}
-                    >🔗 Share</button>
-                    <button onClick={e => handleDelete(e, r._id)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 12, color: 'var(--text-faint)', padding: '2px 6px', borderRadius: 5 }}
-                      onMouseEnter={e => e.currentTarget.style.color = 'var(--danger)'}
-                      onMouseLeave={e => e.currentTarget.style.color = 'var(--text-faint)'}
-                    >🗑 Delete</button>
-                    <span style={{ marginLeft: 'auto', fontSize: 11, color: 'var(--text-faint)' }}>Click to view →</span>
+                  <div style={{ display: 'flex', gap: 10, marginTop: 14, paddingTop: 12, borderTop: '1px solid var(--surface-05)', alignItems: 'center', flexWrap: 'wrap' }}>
+                    <button
+                      type="button"
+                      aria-label={`Share ${r.title || 'review'}`}
+                      onClick={e => handleShare(e, r._id)}
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: 6,
+                        padding: '7px 12px',
+                        borderRadius: 8,
+                        background: 'linear-gradient(135deg, var(--brand-tint-10), var(--brand-tint-08))',
+                        border: '1px solid var(--brand-tint-25)',
+                        color: 'var(--brand-primary)',
+                        cursor: 'pointer',
+                        fontSize: 12,
+                        fontWeight: 850,
+                        letterSpacing: 0.2,
+                        boxShadow: '0 5px 14px var(--brand-tint-08)',
+                        transition: 'transform 0.18s ease, box-shadow 0.18s ease, background 0.18s ease, border-color 0.18s ease',
+                      }}
+                      onMouseEnter={e => {
+                        e.currentTarget.style.background = 'linear-gradient(135deg, var(--brand-tint-15), var(--purple-tint-10))';
+                        e.currentTarget.style.borderColor = 'var(--brand-primary)';
+                        e.currentTarget.style.boxShadow = '0 8px 20px var(--brand-tint-15)';
+                        e.currentTarget.style.transform = 'translateY(-1px)';
+                      }}
+                      onMouseLeave={e => {
+                        e.currentTarget.style.background = 'linear-gradient(135deg, var(--brand-tint-10), var(--brand-tint-08))';
+                        e.currentTarget.style.borderColor = 'var(--brand-tint-25)';
+                        e.currentTarget.style.boxShadow = '0 5px 14px var(--brand-tint-08)';
+                        e.currentTarget.style.transform = 'translateY(0)';
+                      }}
+                    >
+                      <span aria-hidden="true">🔗</span>
+                      <span>Share</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      aria-label={`Delete ${r.title || 'review'}`}
+                      onClick={e => handleDelete(e, r._id)}
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: 6,
+                        padding: '7px 12px',
+                        borderRadius: 8,
+                        background: 'linear-gradient(135deg, var(--danger-tint-10), var(--danger-tint-06))',
+                        border: '1px solid var(--danger-tint-25)',
+                        color: 'var(--danger-text)',
+                        cursor: 'pointer',
+                        fontSize: 12,
+                        fontWeight: 850,
+                        letterSpacing: 0.2,
+                        boxShadow: '0 5px 14px var(--danger-tint-06)',
+                        transition: 'transform 0.18s ease, box-shadow 0.18s ease, background 0.18s ease, border-color 0.18s ease',
+                      }}
+                      onMouseEnter={e => {
+                        e.currentTarget.style.background = 'linear-gradient(135deg, var(--danger-tint-15), var(--danger-tint-10))';
+                        e.currentTarget.style.borderColor = 'var(--danger)';
+                        e.currentTarget.style.boxShadow = '0 8px 20px var(--danger-tint-15)';
+                        e.currentTarget.style.transform = 'translateY(-1px)';
+                      }}
+                      onMouseLeave={e => {
+                        e.currentTarget.style.background = 'linear-gradient(135deg, var(--danger-tint-10), var(--danger-tint-06))';
+                        e.currentTarget.style.borderColor = 'var(--danger-tint-25)';
+                        e.currentTarget.style.boxShadow = '0 5px 14px var(--danger-tint-06)';
+                        e.currentTarget.style.transform = 'translateY(0)';
+                      }}
+                    >
+                      <span aria-hidden="true">🗑</span>
+                      <span>Delete</span>
+                    </button>
+
+                    <span style={{ marginLeft: 'auto', fontSize: 11, color: 'var(--text-faint)', fontWeight: 650 }}>Click to view →</span>
                   </div>
                 </div>
               ))}

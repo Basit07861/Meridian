@@ -1,4 +1,5 @@
 import { deleteReview, shareReview } from '../services/api';
+import { getQuality } from '../utils/reviewQuality';
 
 export default function ReviewHistory({ reviews, onSelect, onDelete }) {
   const handleDelete = async (e, id) => {
@@ -54,10 +55,10 @@ export default function ReviewHistory({ reviews, onSelect, onDelete }) {
                   {new Date(review.createdAt).toLocaleDateString()}
                 </span>
                 <span className="text-gray-600 text-xs">·</span>
-                <span className={`text-xs font-semibold ${
-                  review.overallScore >= 70 ? 'text-green-400' :
-                  review.overallScore >= 40 ? 'text-yellow-400' : 'text-red-400'
-                }`}>
+                <span
+                  className="text-xs font-semibold"
+                  style={{ color: getQuality(review.overallScore).color }}
+                >
                   Score: {review.overallScore}/100
                 </span>
               </div>

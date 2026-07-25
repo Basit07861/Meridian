@@ -3,6 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import DiffView from '../components/DiffView';
 import { analyzeCode, getRepos, getRepoContents, getFileContent } from '../services/api';
 import { detectLanguage } from '../utils/languageDetect';
+import { getQuality } from '../utils/reviewQuality';
+import { FILE_INPUT_ACCEPT, isSupportedFileName, validateUploadFile } from '../utils/reviewSource';
 
 const MAX_CODE_LINES = 500;
 
@@ -16,6 +18,9 @@ const LANG_COLORS = {
   go: 'var(--brand-cyan)',
   rust: 'var(--warning)',
   php: 'var(--brand-purple-soft)',
+  html: 'var(--danger)',
+  css: 'var(--brand-primary)',
+  kotlin: 'var(--brand-purple-soft)',
   unknown: 'var(--text-muted)',
 };
 
@@ -53,36 +58,6 @@ function SeverityBadge({ severity }) {
       {severity}
     </span>
   );
-}
-
-function getQuality(score) {
-  if (score >= 80) {
-    return {
-      label: 'Good',
-      icon: '✅',
-      color: 'var(--success)',
-      bg: 'var(--success-tint-10)',
-      border: 'var(--success-tint-25)',
-    };
-  }
-
-  if (score >= 50) {
-    return {
-      label: 'Fair',
-      icon: '⚠️',
-      color: 'var(--warning)',
-      bg: 'var(--warning-tint-10)',
-      border: 'var(--warning-tint-25)',
-    };
-  }
-
-  return {
-    label: 'Poor',
-    icon: '🔴',
-    color: 'var(--danger)',
-    bg: 'var(--danger-tint-10)',
-    border: 'var(--danger-tint-25)',
-  };
 }
 
 function ScoreRing({ score }) {
@@ -147,12 +122,7 @@ function ReviewPanel({ review }) {
   const med = review.suggestions?.filter((s) => s.severity === 'medium').length || 0;
   const low = review.suggestions?.filter((s) => s.severity === 'low').length || 0;
 
-  const progressColor =
-    review.overallScore >= 70
-      ? 'linear-gradient(90deg,var(--success-strong),var(--success))'
-      : review.overallScore >= 40
-        ? 'linear-gradient(90deg,var(--warning-strong),var(--yellow))'
-        : 'linear-gradient(90deg,var(--danger-strong),var(--danger))';
+  const progressColor = getQuality(review.overallScore).progressGradient;
 
   return (
     <div
@@ -519,6 +489,10 @@ export default function Review() {
   const [repoLoading, setRepoLoading] = useState(false);
   const [selectedRepo, setSelectedRepo] = useState(null);
   const [contents, setContents] = useState([]);
+  const [sourceType, setSourceType] = useState('paste');
+  const [sourceFileName, setSourceFileName] = useState('');
+  const [githubRepo, setGithubRepo] = useState('');
+  const [githubPath, setGithubPath] = useState('');
 
   if (!token) {
     navigate('/login');
@@ -527,37 +501,61 @@ export default function Review() {
 
   const currentLineCount = code ? code.split('\n').length : 0;
 
-  const handleCodeChange = (val, fileName = title) => {
-    const lines = val.split('\n');
+  const handleCodeChange = (value, fileName = sourceFileName) => {
+    const nextCode = typeof value === 'string' ? value : '';
+    const lineCount = nextCode ? nextCode.split('\n').length : 0;
 
-    if (lines.length > MAX_CODE_LINES) {
-      const limitedCode = lines.slice(0, MAX_CODE_LINES).join('\n');
+    setCode(nextCode);
+    setLanguage(detectLanguage(nextCode, fileName));
+    setLineLimitError(
+      lineCount > MAX_CODE_LINES
+        ? `Only ${MAX_CODE_LINES} lines are allowed. Remove ${lineCount - MAX_CODE_LINES} line${lineCount - MAX_CODE_LINES === 1 ? '' : 's'} before analyzing.`
+        : ''
+    );
+  };
 
-      setCode(limitedCode);
-      setLanguage(detectLanguage(limitedCode, fileName));
-      setLineLimitError(`Only ${MAX_CODE_LINES} lines are allowed.`);
+  const resetSourceMetadata = () => {
+    setSourceType('paste');
+    setSourceFileName('');
+    setGithubRepo('');
+    setGithubPath('');
+  };
 
+  const handleFileUpload = (event) => {
+    const file = event.target.files?.[0];
+    const validationError = validateUploadFile(file);
+
+    if (validationError) {
+      setError(validationError);
+      if (event.target) event.target.value = '';
       return;
     }
 
-    setCode(val);
-    setLanguage(detectLanguage(val, fileName));
-    setLineLimitError('');
-  };
-
-  const handleFileUpload = (e) => {
-    const file = e.target.files[0];
-
-    if (!file) return;
-
+    setError('');
     const reader = new FileReader();
 
-    reader.onload = (ev) => {
-      handleCodeChange(ev.target.result, file.name);
+    reader.onload = (loadEvent) => {
+      const content = loadEvent.target?.result;
+
+      if (typeof content !== 'string') {
+        setError('The selected file could not be read as text.');
+        return;
+      }
+
+      setTitle(file.name);
+      setSourceType('upload');
+      setSourceFileName(file.name);
+      setGithubRepo('');
+      setGithubPath('');
+      handleCodeChange(content, file.name);
     };
 
-    setTitle(file.name);
+    reader.onerror = () => {
+      setError('The selected file could not be read. Please try another file.');
+    };
+
     reader.readAsText(file);
+    if (event.target) event.target.value = '';
   };
 
   const loadRepos = async () => {
@@ -597,16 +595,24 @@ export default function Review() {
       return;
     }
 
-    try {
-      const { data } = await getFileContent(
-        selectedRepo.repo.owner.login,
-        selectedRepo.repo.name,
-        item.path
-      );
+    if (!isSupportedFileName(item.name)) {
+      setError('This GitHub file type is not supported for automatic review.');
+      return;
+    }
 
-      handleCodeChange(data.content);
+    try {
+      const owner = selectedRepo.repo.owner.login;
+      const repoName = selectedRepo.repo.name;
+      const { data } = await getFileContent(owner, repoName, item.path);
+
       setTitle(item.name);
+      setSourceType('github');
+      setSourceFileName(item.name);
+      setGithubRepo(`${owner}/${repoName}`);
+      setGithubPath(item.path);
+      handleCodeChange(data.content, item.name);
       setShowRepo(false);
+      setError('');
     } catch {
       setError('Failed to load file.');
     }
@@ -634,7 +640,10 @@ export default function Review() {
         code,
         language: language || 'unknown',
         title: title || 'Untitled Review',
-        sourceType: 'paste',
+        sourceType,
+        sourceFileName: sourceFileName || undefined,
+        githubRepo: sourceType === 'github' ? githubRepo : undefined,
+        githubPath: sourceType === 'github' ? githubPath : undefined,
       });
 
       setReview(data);
@@ -815,8 +824,12 @@ export default function Review() {
       background: 'var(--bg-elevated)',
       fontSize: 11,
       color: 'var(--text-faint)',
-      textAlign: 'right',
       borderTop: '1px solid var(--surface-04)',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      gap: 10,
+      flexWrap: 'wrap',
     },
 
     lineLimitWarning: {
@@ -935,7 +948,7 @@ export default function Review() {
     },
   };
 
-  const analyzeDisabled = loading || !code.trim();
+  const analyzeDisabled = loading || !code.trim() || currentLineCount > MAX_CODE_LINES;
 
   return (
     <div style={S.page}>
@@ -969,7 +982,7 @@ export default function Review() {
               value={title}
               onChange={(e) => {
                 setTitle(e.target.value);
-                if (code) setLanguage(detectLanguage(code, e.target.value));
+                if (code) setLanguage(detectLanguage(code, sourceFileName || e.target.value));
               }}
               style={S.inputStyle}
               onFocus={(e) => {
@@ -1116,7 +1129,7 @@ export default function Review() {
                     ref={fileRef}
                     style={{ display: 'none' }}
                     onChange={handleFileUpload}
-                    accept=".js,.jsx,.ts,.tsx,.py,.java,.cpp,.c,.php,.go,.rs,.html,.css"
+                    accept={FILE_INPUT_ACCEPT}
                   />
 
                   <button style={S.actionBtn} onClick={() => fileRef.current.click()}>
@@ -1127,8 +1140,11 @@ export default function Review() {
                     style={S.actionBtn}
                     onClick={() => {
                       setCode('');
+                      setTitle('');
                       setLanguage('');
                       setLineLimitError('');
+                      setError('');
+                      resetSourceMetadata();
                     }}
                   >
                     🗑 Clear
@@ -1149,7 +1165,10 @@ export default function Review() {
               />
 
               <div style={S.codeFooter}>
-                {currentLineCount} / {MAX_CODE_LINES} lines · {code.length} chars
+                <span>
+                  Source: {sourceType === 'github' ? `GitHub · ${githubRepo}` : sourceType === 'upload' ? `Upload · ${sourceFileName}` : 'Pasted code'}
+                </span>
+                <span>{currentLineCount} / {MAX_CODE_LINES} lines · {code.length} chars</span>
               </div>
             </div>
 
