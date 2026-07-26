@@ -104,6 +104,11 @@ export const getPublicReview = (token) => {
 // GitHub APIs
 // =====================
 
+
+export const getGithubConnectUrl = () => {
+  return api.get('/github/connect-url');
+};
+
 export const getRepos = () => {
   return api.get('/github/repos');
 };

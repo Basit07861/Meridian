@@ -1,70 +1,100 @@
 const passport = require('passport');
 const GitHubStrategy = require('passport-github2').Strategy;
+const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 
-const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const getGithubEmail = (profile) => {
+  const emails = Array.isArray(profile.emails) ? profile.emails : [];
+  const primaryVerified = emails.find((email) => email.primary && email.verified && email.value);
+  const verified = emails.find((email) => email.verified && email.value);
+  const firstAvailable = emails.find((email) => email.value);
 
-const cleanUsername = (value, fallback) => {
-  const raw = String(value || fallback || 'github-user').trim();
-  const cleaned = raw
-    .replace(/\s+/g, '-')
-    .replace(/[^A-Za-z0-9_.-]/g, '')
-    .slice(0, 40);
-
-  if (cleaned.length >= 3) {
-    return cleaned;
-  }
-
-  return `github-${cleaned || 'user'}`.slice(0, 40);
+  return String(
+    primaryVerified?.value
+    || verified?.value
+    || firstAvailable?.value
+    || `github-${profile.id}@users.noreply.github.com`
+  ).toLowerCase();
 };
 
-const getPrimaryEmail = (profile) => {
-  const primaryEmail = profile.emails?.find((item) => item?.value)?.value;
-
-  if (primaryEmail && EMAIL_REGEX.test(primaryEmail)) {
-    return primaryEmail.toLowerCase();
-  }
-
-  // Some GitHub accounts keep their email private. The User model requires an email,
-  // so create a stable fallback that will not collide with a normal email account.
-  return `github-${profile.id}@users.noreply.github.com`;
+const getGithubUsername = (profile) => {
+  return String(profile.username || profile.displayName || `github-${profile.id}`).trim();
 };
 
-const getAvatar = (profile) => profile.photos?.[0]?.value || '';
+const getSafeUsernameBase = (profile) => {
+  const rawUsername = getGithubUsername(profile);
+  const safeUsername = rawUsername
+    .replace(/[^A-Za-z0-9_.-]/g, '-')
+    .replace(/-+/g, '-')
+    .replace(/^[_.-]+|[_.-]+$/g, '')
+    .slice(0, 34);
 
-const getDisplayName = (profile, username) => {
-  const displayName = String(profile.displayName || '').trim();
-  return displayName || username;
+  return safeUsername.length >= 3 ? safeUsername : `github-${profile.id}`.slice(0, 34);
 };
 
-const buildUniqueUsername = async (preferredUsername, githubId) => {
-  const base = cleanUsername(preferredUsername, `github-${githubId}`);
-  let candidate = base;
-  let counter = 1;
+const createUniqueUsername = async (profile) => {
+  const baseUsername = getSafeUsernameBase(profile);
+  let username = baseUsername.slice(0, 40);
+  let counter = 0;
 
-  while (await User.exists({ username: candidate })) {
-    const suffix = `-${counter}`;
-    candidate = `${base.slice(0, 40 - suffix.length)}${suffix}`;
+  while (await User.findOne({ username })) {
     counter += 1;
+    const suffix = counter === 1
+      ? `-${String(profile.id).slice(-6)}`
+      : `-${String(profile.id).slice(-6)}-${counter}`;
+
+    username = `${baseUsername.slice(0, Math.max(3, 40 - suffix.length))}${suffix}`;
   }
 
-  return candidate;
+  return username;
 };
 
-const updateGithubFields = async (user, { accessToken, profile, githubEmail }) => {
-  const githubUsername = cleanUsername(profile.username, `github-${profile.id}`);
+const getConnectState = (req) => {
+  const state = req.query?.state;
 
-  user.githubId = profile.id;
-  user.githubToken = accessToken;
+  if (!state || typeof state !== 'string') {
+    return null;
+  }
+
+  try {
+    const decoded = jwt.verify(state, process.env.JWT_SECRET);
+
+    if (decoded?.mode === 'connect' && decoded?.userId) {
+      return decoded;
+    }
+  } catch (error) {
+    console.warn('Invalid GitHub connect state:', error.message);
+  }
+
+  return null;
+};
+
+const linkGithubToUser = async (user, accessToken, profile) => {
+  const githubId = String(profile.id);
+  const githubUsername = getGithubUsername(profile);
+  const githubAvatar = profile.photos?.[0]?.value || user.avatar;
+
+  const existingGithubUser = await User.findOne({ githubId });
+
+  if (existingGithubUser && String(existingGithubUser._id) !== String(user._id)) {
+    const error = new Error('This GitHub account is already linked to another Meridian account.');
+    error.code = 'GITHUB_ALREADY_LINKED';
+    throw error;
+  }
+
+  if (user.githubId && String(user.githubId) !== githubId) {
+    const error = new Error('This Meridian account is already linked to another GitHub account.');
+    error.code = 'MERIDIAN_ACCOUNT_ALREADY_LINKED';
+    throw error;
+  }
+
+  user.githubId = githubId;
   user.githubUsername = githubUsername;
-  user.avatar = getAvatar(profile) || user.avatar;
+  user.githubToken = accessToken;
+  user.avatar = githubAvatar;
 
   if (!user.displayName) {
-    user.displayName = getDisplayName(profile, user.username || githubUsername);
-  }
-
-  if (!user.email && githubEmail) {
-    user.email = githubEmail;
+    user.displayName = user.username || githubUsername;
   }
 
   await user.save({ validateBeforeSave: false });
@@ -76,51 +106,60 @@ passport.use(new GitHubStrategy({
   clientSecret: process.env.GITHUB_CLIENT_SECRET,
   callbackURL: process.env.GITHUB_CALLBACK_URL,
   scope: ['user:email', 'repo'],
-}, async (accessToken, refreshToken, profile, done) => {
+  passReqToCallback: true,
+},
+async (req, accessToken, refreshToken, profile, done) => {
   try {
-    const githubUsername = cleanUsername(profile.username, `github-${profile.id}`);
-    const githubEmail = getPrimaryEmail(profile);
+    const connectState = getConnectState(req);
 
-    // Existing GitHub user: update token/avatar and continue.
-    const existingGithubUser = await User.findOne({ githubId: profile.id });
-    if (existingGithubUser) {
-      const updatedUser = await updateGithubFields(existingGithubUser, {
-        accessToken,
-        profile,
-        githubEmail,
-      });
-      return done(null, updatedUser);
+    if (connectState) {
+      const currentUser = await User.findById(connectState.userId);
+
+      if (!currentUser) {
+        return done(null, false, {
+          mode: 'connect',
+          message: 'Meridian account not found for GitHub connection.',
+        });
+      }
+
+      const connectedUser = await linkGithubToUser(currentUser, accessToken, profile);
+      return done(null, connectedUser, { mode: 'connect' });
     }
 
-    // Existing email account: link GitHub instead of creating a duplicate user.
+    let user = await User.findOne({ githubId: String(profile.id) });
+
+    if (user) {
+      user.githubToken = accessToken;
+      user.githubUsername = getGithubUsername(profile);
+      user.avatar = profile.photos?.[0]?.value || user.avatar;
+      await user.save({ validateBeforeSave: false });
+      return done(null, user, { mode: 'login' });
+    }
+
+    const githubEmail = getGithubEmail(profile);
     const existingEmailUser = await User.findOne({ email: githubEmail });
+
     if (existingEmailUser) {
-      const updatedUser = await updateGithubFields(existingEmailUser, {
-        accessToken,
-        profile,
-        githubEmail,
-      });
-      return done(null, updatedUser);
+      const linkedUser = await linkGithubToUser(existingEmailUser, accessToken, profile);
+      return done(null, linkedUser, { mode: 'login' });
     }
 
-    // New GitHub user: generate a unique username to avoid duplicate-key crashes.
-    const username = await buildUniqueUsername(githubUsername, profile.id);
+    const username = await createUniqueUsername(profile);
 
-    const user = await User.create({
-      githubId: profile.id,
+    user = await User.create({
+      githubId: String(profile.id),
       username,
-      displayName: getDisplayName(profile, username),
+      displayName: profile.displayName || username,
       email: githubEmail,
-      avatar: getAvatar(profile),
-      githubUsername,
+      avatar: profile.photos?.[0]?.value,
+      githubUsername: getGithubUsername(profile),
       githubToken: accessToken,
       selectedAvatar: 'avatar-1',
       bio: '',
     });
 
-    return done(null, user);
+    return done(null, user, { mode: 'login' });
   } catch (error) {
-    console.error('GitHub strategy error:', error.message);
     return done(error, null);
   }
 }));

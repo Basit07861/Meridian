@@ -20,7 +20,13 @@ const generateToken = (id) => {
   });
 };
 
-const getAccountType = (user) => (user.githubId ? 'github' : 'email');
+const getAccountType = (user) => {
+  if (user.githubId && user.password) {
+    return 'email_github';
+  }
+
+  return user.githubId ? 'github' : 'email';
+};
 
 const cleanString = (value) => {
   if (typeof value !== 'string') {
@@ -496,7 +502,7 @@ const resetPassword = async (req, res) => {
 // GET PROFILE
 const getProfile = async (req, res) => {
   try {
-    const user = await User.findById(req.user.id).select('-password -githubToken -loginCodeHash -resetPasswordTokenHash');
+    const user = await User.findById(req.user.id).select('-githubToken -loginCodeHash -resetPasswordTokenHash');
 
     if (!user) {
       return res.status(404).json({ message: 'User not found' });

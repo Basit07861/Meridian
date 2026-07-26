@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { getProfile, getReviews, updateProfile } from '../services/api';
+import { getGithubConnectUrl, getProfile, getReviews, updateProfile } from '../services/api';
 import { getQuality, getQualityKey } from '../utils/reviewQuality';
 
 const PRESET_AVATARS = [
@@ -38,6 +38,18 @@ const getUsername = (user) => {
 const formatUsername = (user) => {
   const username = getUsername(user);
   return username ? `@${username}` : 'Not available';
+};
+
+const getAccountTypeLabel = (user) => {
+  if (user?.accountType === 'email_github') {
+    return 'Email + GitHub';
+  }
+
+  if (user?.accountType === 'github' || user?.githubConnected) {
+    return 'GitHub OAuth';
+  }
+
+  return 'Email Login';
 };
 
 const getSelectedAvatar = (selectedAvatar) => {
@@ -101,6 +113,25 @@ export default function Profile() {
   const [editForm, setEditForm] = useState({ displayName: '', bio: '', selectedAvatar: 'avatar-1' });
   const [saveError, setSaveError] = useState('');
   const [saving, setSaving] = useState(false);
+  const [githubNotice, setGithubNotice] = useState('');
+  const [githubError, setGithubError] = useState('');
+  const [connectingGithub, setConnectingGithub] = useState(false);
+
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const githubStatus = params.get('github');
+
+    if (githubStatus === 'connected') {
+      setGithubNotice('GitHub connected successfully. You can now load code directly from your repositories.');
+      window.history.replaceState(null, '', window.location.pathname);
+    }
+
+    if (githubStatus === 'connect_failed') {
+      setGithubError('GitHub connection could not be completed. Please try again.');
+      window.history.replaceState(null, '', window.location.pathname);
+    }
+  }, []);
 
   useEffect(() => {
     const token = localStorage.getItem('token');
@@ -239,6 +270,26 @@ export default function Profile() {
     }
   };
 
+  const handleConnectGithub = async () => {
+    try {
+      setConnectingGithub(true);
+      setGithubError('');
+      setGithubNotice('');
+
+      const response = await getGithubConnectUrl();
+
+      if (!response.data?.url) {
+        throw new Error('GitHub connection URL was not returned.');
+      }
+
+      window.location.href = response.data.url;
+    } catch (err) {
+      console.error('GitHub connect error:', err);
+      setGithubError(err.response?.data?.message || 'Unable to start GitHub connection. Please try again.');
+      setConnectingGithub(false);
+    }
+  };
+
   const averageScoreStyle = getScoreLabel(stats.averageScore);
   const isGithubUser = profile?.accountType === 'github' || profile?.githubConnected;
 
@@ -292,6 +343,19 @@ export default function Profile() {
     fontSize: 15,
     outline: 'none',
     boxSizing: 'border-box',
+  };
+
+  const connectButtonStyle = {
+    padding: '8px 13px',
+    borderRadius: 999,
+    border: '1px solid var(--brand-tint-30)',
+    background: connectingGithub ? 'var(--brand-tint-10)' : 'linear-gradient(135deg,var(--brand-blue),var(--brand-purple))',
+    color: connectingGithub ? 'var(--brand-primary)' : 'white',
+    fontSize: 12,
+    fontWeight: 950,
+    cursor: connectingGithub ? 'not-allowed' : 'pointer',
+    boxShadow: connectingGithub ? 'none' : '0 10px 24px var(--brand-glow)',
+    whiteSpace: 'nowrap',
   };
 
   if (loading) {
@@ -394,6 +458,18 @@ export default function Profile() {
               ✏️ Edit Profile
             </button>
 
+            {githubNotice && (
+              <div style={{ position: 'relative', marginTop: 12, padding: 12, borderRadius: 16, background: 'var(--success-tint-08)', border: '1px solid var(--success-tint-20)', color: 'var(--success-text)', fontWeight: 800, fontSize: 13, lineHeight: 1.45 }}>
+                ✅ {githubNotice}
+              </div>
+            )}
+
+            {githubError && (
+              <div style={{ position: 'relative', marginTop: 12, padding: 12, borderRadius: 16, background: 'var(--danger-tint-06)', border: '1px solid var(--danger-tint-20)', color: 'var(--danger-text)', fontWeight: 800, fontSize: 13, lineHeight: 1.45 }}>
+                ⚠️ {githubError}
+              </div>
+            )}
+
             <div style={{ position: 'relative', marginTop: 16, display: 'grid', gap: 10 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 14, padding: '12px 14px', borderRadius: 16, background: 'var(--surface-04)', border: '1px solid var(--border)', flexWrap: 'wrap' }}>
                 <span style={{ color: 'var(--text-muted)', fontWeight: 700 }}>Username</span>
@@ -405,7 +481,7 @@ export default function Profile() {
               <div style={{ display: 'flex', justifyContent: 'space-between', gap: 14, padding: '12px 14px', borderRadius: 16, background: 'var(--surface-04)', border: '1px solid var(--border)' }}>
                 <span style={{ color: 'var(--text-muted)', fontWeight: 700 }}>Account Type</span>
                 <span style={{ color: 'var(--text-heading)', fontWeight: 900 }}>
-                  {isGithubUser ? 'GitHub OAuth' : 'Email Login'}
+                  {getAccountTypeLabel(profile)}
                 </span>
               </div>
 
@@ -416,11 +492,23 @@ export default function Profile() {
                 </span>
               </div>
 
-              <div style={{ display: 'flex', justifyContent: 'space-between', gap: 14, padding: '12px 14px', borderRadius: 16, background: 'var(--surface-04)', border: '1px solid var(--border)' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 14, padding: '12px 14px', borderRadius: 16, background: 'var(--surface-04)', border: '1px solid var(--border)', flexWrap: 'wrap' }}>
                 <span style={{ color: 'var(--text-muted)', fontWeight: 700 }}>GitHub</span>
-                <span style={{ color: profile?.githubConnected ? 'var(--success)' : 'var(--text-muted)', fontWeight: 900 }}>
-                  {profile?.githubConnected ? `@${profile?.githubUsername}` : 'Not connected'}
-                </span>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 10, flexWrap: 'wrap' }}>
+                  <span style={{ color: profile?.githubConnected ? 'var(--success)' : 'var(--text-muted)', fontWeight: 900 }}>
+                    {profile?.githubConnected ? `@${profile?.githubUsername}` : 'Not connected'}
+                  </span>
+                  {!profile?.githubConnected && (
+                    <button
+                      type="button"
+                      onClick={handleConnectGithub}
+                      disabled={connectingGithub}
+                      style={connectButtonStyle}
+                    >
+                      {connectingGithub ? 'Connecting...' : 'Connect GitHub'}
+                    </button>
+                  )}
+                </div>
               </div>
 
               <div style={{ display: 'flex', justifyContent: 'space-between', gap: 14, padding: '12px 14px', borderRadius: 16, background: 'var(--surface-04)', border: '1px solid var(--border)' }}>
