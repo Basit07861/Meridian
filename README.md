@@ -98,6 +98,10 @@ The system combines:
 - Two-step login verification code flow.
 - Forgot password and reset password functionality.
 - GitHub OAuth login.
+- Email/password users can connect their GitHub account from the Profile page.
+- GitHub OAuth callback supports login, signup, and account-linking flows.
+- GitHub avatar and GitHub username sync after GitHub login or account connection.
+- GitHub connection conflict handling prevents one GitHub account from being linked to multiple Meridian accounts.
 - JWT-based protected routes.
 - Client-side logout by removing the stored JWT and returning the user to the login page.
 - Profile editing with display name, bio, and avatar options.
@@ -171,6 +175,11 @@ The system combines:
 - Bio/about section.
 - Account type display.
 - GitHub connection status.
+- Connect GitHub action for email/password users.
+- GitHub username display after successful connection.
+- GitHub profile picture sync after successful connection.
+- Clear success/failure messages for GitHub connection attempts.
+- Polished GitHub connection card and button layout.
 - Avatar status.
 - Review statistics.
 - Average score.
@@ -187,6 +196,8 @@ The system combines:
 - Theme-aware Meridian logo.
 - Responsive layout improvements.
 - Improved navbar styling.
+- Improved responsive navbar alignment for desktop, tablet, and mobile screens.
+- Consistent pill-style navbar buttons for Review, History, Theme, User, Login, Get Started, and Logout actions.
 - Improved auth page spacing.
 - Register page starts directly with the account creation heading after removing the extra signup badge line.
 - Register page includes clean verification flow.
@@ -220,6 +231,12 @@ The latest project version includes the following improvements:
 - Preserved SMTP support for local testing.
 - Improved forgot password and reset password email flow for deployment.
 - Improved GitHub OAuth deployed callback handling.
+- Added GitHub account connection support for email/password users from the Profile page.
+- Added protected GitHub connect URL flow for logged-in users.
+- Improved GitHub OAuth conflict handling for duplicate emails, duplicate usernames, private GitHub emails, and already-linked GitHub accounts.
+- Added GitHub avatar and username sync after account connection.
+- Added clearer Profile page messages for GitHub connection success and failure states.
+- Polished Profile page GitHub connection layout and Connect GitHub button.
 - Fixed deployed frontend API calls that were still pointing to localhost.
 - Added Netlify `_redirects` file for SPA route refresh support.
 - Improved public shared review route.
@@ -227,6 +244,7 @@ The latest project version includes the following improvements:
 - Added separate display name and username display.
 - Added theme-aware logo handling.
 - Improved frontend responsiveness across major pages.
+- Improved responsive navbar alignment and consistent right-side action button spacing.
 - Removed extra signup badge text from Register page.
 - Improved language detection.
 - Balanced AI scoring with hybrid issue-based scoring v7.
@@ -290,6 +308,28 @@ sequenceDiagram
     F->>B: Create verified account
     B->>DB: Create user and remove pending record
     B->>F: Return JWT and user data
+```
+
+### GitHub Account Connection Flow
+
+```mermaid
+sequenceDiagram
+    participant U as Logged-in Email User
+    participant F as Frontend Profile Page
+    participant B as Backend
+    participant G as GitHub OAuth
+    participant DB as MongoDB
+
+    U->>F: Click Connect GitHub
+    F->>B: GET /api/github/connect-url with JWT
+    B->>B: Create short-lived OAuth connect state
+    B->>F: Return GitHub authorization URL
+    F->>G: Redirect user to GitHub authorization
+    G->>B: Redirect back with code and state
+    B->>B: Verify state and current user
+    B->>DB: Save GitHub ID, username, token, and avatar
+    B->>F: Redirect back to /profile?github=connected
+    F->>U: Show connected GitHub status
 ```
 
 ### Public Sharing Flow
@@ -701,7 +741,9 @@ https://meridian-ai-review.netlify.app
 | Method | Endpoint | Description |
 |---|---|---|
 | GET | `/api/github/login` | Start GitHub OAuth login |
-| GET | `/api/github/callback` | GitHub OAuth callback |
+| GET | `/api/github/connect-url` | Get protected GitHub connection URL for a logged-in email/password user |
+| GET | `/api/github/connect` | Start GitHub account-linking OAuth flow |
+| GET | `/api/github/callback` | GitHub OAuth callback for login, signup, and account connection |
 | GET | `/api/github/repos` | Fetch GitHub repositories |
 | GET | `/api/github/repos/:owner/:repo/contents` | Browse repository contents |
 | GET | `/api/github/repos/:owner/:repo/file` | Load selected GitHub file content |
@@ -808,6 +850,7 @@ npm test
 - Test reset password link.
 - Test client-side logout and protected-route redirection.
 - Test GitHub OAuth login.
+- Test GitHub account connection from an existing email/password account.
 
 ### Code Review Testing
 
@@ -849,6 +892,10 @@ Expected behavior:
 - Edit bio.
 - Check account type.
 - Check GitHub account details for GitHub users.
+- Connect GitHub from an email/password account.
+- Verify connected GitHub username appears on the Profile page.
+- Verify GitHub profile picture syncs as the Meridian avatar after connection.
+- Verify a clear error appears if the selected GitHub account is already linked to another Meridian account.
 - Verify review statistics update after reviews.
 
 ### Deployment Testing
@@ -944,6 +991,9 @@ Meridian AI includes several security and validation measures:
 - Passwords are hashed using bcrypt.
 - JWT is used for protected API routes.
 - GitHub OAuth credentials are stored only on the backend.
+- GitHub account connection flow is protected and can be started only by a logged-in user.
+- Short-lived OAuth state is used for GitHub account connection.
+- A single GitHub account is prevented from being connected to multiple Meridian accounts.
 - Groq API key is stored only in AI service environment variables.
 - MongoDB connection string is stored only in backend environment variables.
 - Registration requires email verification.
@@ -1034,6 +1084,8 @@ Authorization callback URL:
 https://meridian-backend-7jah.onrender.com/api/github/callback
 ```
 
+The same callback URL is used for GitHub login, GitHub signup, and connecting GitHub to an existing email/password account. The backend separates these flows using OAuth state handling.
+
 ---
 
 ## Future Scope
@@ -1060,6 +1112,6 @@ Possible future improvements:
 
 ## Conclusion
 
-Meridian AI is a full-stack AI-powered code review platform that combines a modern React frontend, secure Node.js/Express backend, MongoDB persistence, GitHub OAuth integration, email verification workflows, public review sharing, and a FastAPI-based AI microservice using Groq LLM.
+Meridian AI is a full-stack AI-powered code review platform that combines a modern React frontend, secure Node.js/Express backend, MongoDB persistence, GitHub OAuth login and account linking, email verification workflows, public review sharing, and a FastAPI-based AI microservice using Groq LLM.
 
 The system helps developers get fast, structured, and actionable feedback on code quality, bugs, accessibility, security, and maintainability, making it useful for students, junior developers, and teams looking for faster review support.
