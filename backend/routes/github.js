@@ -69,28 +69,43 @@ router.get('/connect', (req, res, next) => {
   })(req, res, next);
 });
 
+const getGithubFailureRedirect = (connectFlow, error, info) => {
+  if (!connectFlow) {
+    return `${FRONTEND_URL}/login?github=error`;
+  }
+
+  const failureCode = error?.code || info?.code;
+
+  if (failureCode === 'GITHUB_ALREADY_LINKED') {
+    return `${FRONTEND_URL}/profile?github=already_linked`;
+  }
+
+  if (failureCode === 'MERIDIAN_ACCOUNT_ALREADY_LINKED') {
+    return `${FRONTEND_URL}/profile?github=account_already_linked`;
+  }
+
+  return `${FRONTEND_URL}/profile?github=connect_failed`;
+};
+
 // GitHub callback for both login/signup and profile account linking.
 router.get('/callback', (req, res, next) => {
   const connectFlow = isConnectCallback(req.query.state);
-  const failureRedirect = connectFlow
-    ? `${FRONTEND_URL}/profile?github=connect_failed`
-    : `${FRONTEND_URL}/login?github=error`;
 
   passport.authenticate('github', { session: true }, (error, user, info) => {
     if (error) {
       console.error('GitHub callback error:', error.message);
-      return res.redirect(failureRedirect);
+      return res.redirect(getGithubFailureRedirect(connectFlow, error, info));
     }
 
     if (!user) {
       console.error('GitHub callback failed:', info?.message || 'No user returned from GitHub OAuth.');
-      return res.redirect(failureRedirect);
+      return res.redirect(getGithubFailureRedirect(connectFlow, error, info));
     }
 
     req.logIn(user, (loginError) => {
       if (loginError) {
         console.error('GitHub session error:', loginError.message);
-        return res.redirect(failureRedirect);
+        return res.redirect(getGithubFailureRedirect(connectFlow, loginError, info));
       }
 
       if (info?.mode === 'connect') {

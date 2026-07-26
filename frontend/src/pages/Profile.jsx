@@ -127,6 +127,18 @@ export default function Profile() {
       window.history.replaceState(null, '', window.location.pathname);
     }
 
+    if (githubStatus === 'already_linked') {
+      setGithubError('This GitHub account is already connected to another Meridian account. Please use a different GitHub account, or log in with that GitHub account instead.');
+      window.history.replaceState(null, '', window.location.pathname);
+      return;
+    }
+
+    if (githubStatus === 'account_already_linked') {
+      setGithubError('This Meridian account is already connected to a different GitHub account.');
+      window.history.replaceState(null, '', window.location.pathname);
+      return;
+    }
+
     if (githubStatus === 'connect_failed') {
       setGithubError('GitHub connection could not be completed. Please try again.');
       window.history.replaceState(null, '', window.location.pathname);
@@ -492,23 +504,42 @@ export default function Profile() {
                 </span>
               </div>
 
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 14, padding: '12px 14px', borderRadius: 16, background: 'var(--surface-04)', border: '1px solid var(--border)', flexWrap: 'wrap' }}>
-                <span style={{ color: 'var(--text-muted)', fontWeight: 700 }}>GitHub</span>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 10, flexWrap: 'wrap' }}>
-                  <span style={{ color: profile?.githubConnected ? 'var(--success)' : 'var(--text-muted)', fontWeight: 900 }}>
+              <div style={{ padding: '14px', borderRadius: 16, background: 'var(--surface-04)', border: '1px solid var(--border)', display: 'grid', gap: 12 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 14, flexWrap: 'wrap' }}>
+                  <div style={{ minWidth: 0, flex: '1 1 190px' }}>
+                    <div style={{ color: 'var(--text-muted)', fontWeight: 800, marginBottom: 4 }}>GitHub</div>
+                    <div style={{ color: 'var(--text-faint)', fontSize: 12.5, lineHeight: 1.45 }}>
+                      {profile?.githubConnected
+                        ? 'Repository access is enabled for this account.'
+                        : 'Connect GitHub to load repository files directly into reviews.'}
+                    </div>
+                  </div>
+
+                  <span style={{ color: profile?.githubConnected ? 'var(--success)' : 'var(--text-muted)', fontWeight: 950, wordBreak: 'break-word', textAlign: 'right' }}>
                     {profile?.githubConnected ? `@${profile?.githubUsername}` : 'Not connected'}
                   </span>
-                  {!profile?.githubConnected && (
-                    <button
-                      type="button"
-                      onClick={handleConnectGithub}
-                      disabled={connectingGithub}
-                      style={connectButtonStyle}
-                    >
-                      {connectingGithub ? 'Connecting...' : 'Connect GitHub'}
-                    </button>
-                  )}
                 </div>
+
+                {!profile?.githubConnected && (
+                  <button
+                    type="button"
+                    onClick={handleConnectGithub}
+                    disabled={connectingGithub}
+                    style={{
+                      ...connectButtonStyle,
+                      width: '100%',
+                      padding: '11px 14px',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: 8,
+                      fontSize: 13,
+                    }}
+                  >
+                    <span>🔗</span>
+                    <span>{connectingGithub ? 'Connecting...' : 'Connect GitHub'}</span>
+                  </button>
+                )}
               </div>
 
               <div style={{ display: 'flex', justifyContent: 'space-between', gap: 14, padding: '12px 14px', borderRadius: 16, background: 'var(--surface-04)', border: '1px solid var(--border)' }}>
