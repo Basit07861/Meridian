@@ -415,7 +415,7 @@ export default function Home() {
 
           {/* GitHub */}
           <div style={{
-            gridColumn: 'span 5', background: c.surface, border: `1px solid ${c.border}`,
+            gridColumn: 'span 7', background: c.surface, border: `1px solid ${c.border}`,
             borderRadius: 16, padding: 28, position: 'relative', overflow: 'hidden',
             boxShadow: 'var(--shadow)',
             transition: 'border-color 0.3s, transform 0.3s',
@@ -430,7 +430,7 @@ export default function Home() {
 
           {/* Severity */}
           <div style={{
-            gridColumn: 'span 4', background: c.surface, border: `1px solid ${c.border}`,
+            gridColumn: 'span 7', background: c.surface, border: `1px solid ${c.border}`,
             borderRadius: 16, padding: 28, boxShadow: 'var(--shadow)', transition: 'border-color 0.3s, transform 0.3s',
           }}
             onMouseEnter={e => e.currentTarget.style.borderColor = 'var(--danger-tint-30)'}
@@ -443,7 +443,7 @@ export default function Home() {
 
           {/* Diff */}
           <div style={{
-            gridColumn: 'span 4', background: c.surface, border: `1px solid ${c.border}`,
+            gridColumn: 'span 7', background: c.surface, border: `1px solid ${c.border}`,
             borderRadius: 16, padding: 28, boxShadow: 'var(--shadow)', transition: 'border-color 0.3s, transform 0.3s',
           }}
             onMouseEnter={e => e.currentTarget.style.borderColor = 'var(--success-tint-30)'}
@@ -456,7 +456,7 @@ export default function Home() {
 
           {/* History */}
           <div style={{
-            gridColumn: 'span 4', background: c.surface, border: `1px solid ${c.border}`,
+            gridColumn: 'span 7', background: c.surface, border: `1px solid ${c.border}`,
             borderRadius: 16, padding: 28, boxShadow: 'var(--shadow)', transition: 'border-color 0.3s, transform 0.3s',
           }}
             onMouseEnter={e => e.currentTarget.style.borderColor = 'var(--orange-tint-30)'}
