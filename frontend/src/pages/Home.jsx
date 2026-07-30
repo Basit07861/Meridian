@@ -238,7 +238,6 @@ export default function Home() {
 
         {/* Scroll indicator */}
         <div style={{ position: 'absolute', bottom: 32, left: '50%', transform: 'translateX(-50%)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, animation: 'fadeUp 1s 1s ease both' }}>
-          <div style={{ width: 1, height: 40, background: `linear-gradient(to bottom, ${c.muted2}, transparent)` }} />
         </div>
       </section>
 
